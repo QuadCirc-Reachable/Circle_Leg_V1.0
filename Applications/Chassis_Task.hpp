@@ -10,6 +10,7 @@
 #include "Helper.hpp"
 #include "Motor_Controller.hpp"
 #include "PC_Comm.hpp"
+#include "Comm_Msg.hpp"
 
 namespace Applications::Chassis_Task{
     void Chassis_Task(void *pvPara);

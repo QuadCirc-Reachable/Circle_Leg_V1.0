@@ -77,9 +77,45 @@ namespace Motor_Controller
         }
     }
 
+    void  M3508_Controller::setTargetForce(float *set_force)
+    {
+        //To be implemented if needed
+    }
+
+    void M3508_Controller::updateCompensation(Motors::GM6020 **leg_motors, float* leg_current_pos, float *set_rpm)
+    {
+        uint8_t j = 0;
+        for(uint8_t i = 0; i < WHEEL_MOTOR_NUM; i++) {
+            switch (i)
+            {
+            //3508 ID 1 -> Leg Motor ID 4
+            case 0:
+                j = 3;
+                break;
+            //3508 ID 2 -> Leg Motor ID 1
+            case 1:
+                j = 0;
+                break;
+            //3508 ID 3 -> Leg Motor ID 2
+            case 2:
+                j = 1;
+                break;
+            //3508 ID 4 -> Leg Motor ID 3
+            case 3:
+                j = 2;
+                break;
+            default:
+                break;
+            }
+            float leg_rpm = leg_motors[j]->getRPMFeedback();
+            float compensation_rpm = leg_rpm * (1.0f + (ECCENTRIC_OFFSET_r / WHEEL_RADIUS_R) * cosf(deg2rad(leg_current_pos[j])));
+            set_rpm[i] -= compensation_rpm;
+        }
+    }
+
     void M3508_Controller::setTargetRPM(float *set_rpm, float* current_rpm)
     {
-        for(int i = 0; i < WHEEL_MOTOR_NUM; i++){
+        for(uint8_t i = 0; i < WHEEL_MOTOR_NUM; i++){
             last_set_rpm[i] = set_rpm[i]; // Record for debugging/logging
 
             //Set motor output using velocity PID

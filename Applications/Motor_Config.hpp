@@ -24,7 +24,16 @@
 #define GM6020_ID1_OFFSET -2.050f
 #define GM6020_ID2_OFFSET -0.070f
 #define GM6020_ID3_OFFSET -0.040f
-#define GM6020_ID4_OFFSET -1.000f
+#define GM6020_ID4_OFFSET 1.000f
+
+
+
+// ==========================================
+//        Mechanical Parameters
+// ==========================================
+
+#define ECCENTRIC_OFFSET_r 65.0f
+#define WHEEL_RADIUS_R 320.0f
 
 // ==========================================
 //           Control Parameters

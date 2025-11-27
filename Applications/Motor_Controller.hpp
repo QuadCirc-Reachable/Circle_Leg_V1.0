@@ -9,6 +9,8 @@
 #include "Helper.hpp"
 #include "Motor_Config.hpp"
 #include "PC_Comm.hpp"
+#include "Math.hpp"
+
 
 namespace Motor_Controller{
     using namespace Core::Drivers;
@@ -64,7 +66,17 @@ namespace Motor_Controller{
             M3508_Controller() = delete;
             
             void setTargetForce(float* set_force);
+            
+            /*
+            
+            */
+            void updateCompensation(Motors::GM6020 **leg_motors, float* leg_current_pos, float *set_rpm);
 
+            /**
+             * @brief Set target RPM for all motors
+             * @param set_rpm Array of target RPMs
+             * @param current_rpm Array to store current RPMs (for debugging/logging)
+             */
             void setTargetRPM(float* set_rpm, float* current_rpm);
 
             /**

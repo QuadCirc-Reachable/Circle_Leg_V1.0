@@ -60,3 +60,47 @@ inline float Calculate_Wheel_RPM(const Protocol::Joystick_Info& joy)
     // Calculate RPM
     return (r_val / JOYSTICK_MAX_R) * MAX_WHEEL_RPM * direction;
 }
+
+inline void Set_Leg_Pos_by_Buttons(Protocol::PC_Msg* pc_msg_chassis, float* leg_set_pos, bool& is_free_mode, uint8_t& last_button_status)
+{
+    if(pc_msg_chassis->button_status & BTN_A){
+        if (!(last_button_status & BTN_A)) {
+                is_free_mode = !is_free_mode; // Toggle free mode
+            }
+    }
+    else if(pc_msg_chassis->button_status & BTN_B){
+        leg_set_pos[0] = 90.0f;     // ID1
+        leg_set_pos[1] = 90.0f;     // ID2
+        leg_set_pos[2] = 90.0f;     // ID3
+        leg_set_pos[3] = 90.0f;     // ID4
+    }
+    else if(pc_msg_chassis->button_status & BTN_Y){
+        
+        leg_set_pos[0] = 180.0f;   // ID1
+        leg_set_pos[1] = 180.0f;   // ID2
+        leg_set_pos[2] = 180.0f;   // ID3
+        leg_set_pos[3] = 180.0f;   // ID4
+    }
+    else if(pc_msg_chassis->button_status & BTN_X){
+        leg_set_pos[0] = -90.0f;     // ID1
+        leg_set_pos[1] = -90.0f;     // ID2
+        leg_set_pos[2] = -90.0f;         // ID3
+        leg_set_pos[3] = -90.0f;     // ID4
+    }
+    else if(pc_msg_chassis->button_status & BTN_LB){
+        leg_set_pos[0] = -90.0f;     // ID1
+        leg_set_pos[1] = 90.0f;     // ID2
+        leg_set_pos[2] = -90.0f;         // ID3
+        leg_set_pos[3] = 90.0f;     // ID4
+    }
+    else if(pc_msg_chassis->button_status & BTN_RB){
+        leg_set_pos[0] = 90.0f;       // ID1
+        leg_set_pos[1] = -90.0f;       // ID2
+        leg_set_pos[2] = 90.0f;       // ID3
+        leg_set_pos[3] = -90.0f;       // ID4
+    }
+    else{
+        // Update last_button_status
+        last_button_status = pc_msg_chassis->button_status;
+    }
+}

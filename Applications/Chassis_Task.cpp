@@ -8,9 +8,9 @@ namespace Applications::Chassis_Task{
 
     // --- Motor Definitions  ---
     Motors::GM6020 GM6020_id1(1, 0, Motors::GM6020::ControlMode::CURRENT,false); 
-    Motors::GM6020 GM6020_id2(2, 0, Motors::GM6020::ControlMode::CURRENT,false); 
+    Motors::GM6020 GM6020_id2(2, 0, Motors::GM6020::ControlMode::CURRENT,true); 
     Motors::GM6020 GM6020_id3(3, 0, Motors::GM6020::ControlMode::CURRENT,true); 
-    Motors::GM6020 GM6020_id4(4, 0, Motors::GM6020::ControlMode::CURRENT,true); 
+    Motors::GM6020 GM6020_id4(4, 0, Motors::GM6020::ControlMode::CURRENT,false); 
 
     Motors::M3508 M3508_id1(1,1,8,1,false); 
     Motors::M3508 M3508_id2(2,1,8,1,false); 
@@ -20,16 +20,16 @@ namespace Applications::Chassis_Task{
     // --- PID Definitions  ---
     // Leg Motor PID Params
     PID::Param LEG_MOTOR_VEL_PID_PARAM(18.0f, 1.0f, 0.0f, 5000.0f,15000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
-    PID::Param LEG_MOTOR_POS_PID_PARAM(2500.0f, 0.0f, 180.0f, 15000.0f,15000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
+    PID::Param LEG_MOTOR_POS_PID_PARAM(2500.0f, 0.0f, 120.0f, 15000.0f,15000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
 
     // Wheel Motor PID Params
-    PID::Param WHEEL_MOTOR_ID1_VEL_PID_PARAM(300.0f, 20.0f, 1.0f, 14000.0f,16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
+    PID::Param WHEEL_MOTOR_ID1_VEL_PID_PARAM(200.0f, 20.0f, 1.0f, 14000.0f,16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
 
-    PID::Param WHEEL_MOTOR_ID2_VEL_PID_PARAM(200.0f, 25.0f, 1.2f, 15000.0f,15000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
+    PID::Param WHEEL_MOTOR_ID2_VEL_PID_PARAM(200.0f, 20.0f, 1.0f, 15000.0f,15000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
 
-    PID::Param WHEEL_MOTOR_ID3_VEL_PID_PARAM(250.0f, 25.0f, 1.0f, 15000.0f,15000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
+    PID::Param WHEEL_MOTOR_ID3_VEL_PID_PARAM(200.0f, 25.0f, 1.0f, 15000.0f,15000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
 
-    PID::Param WHEEL_MOTOR_ID4_VEL_PID_PARAM(250.0f, 25.0f, 1.2f, 15000.0f,15000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
+    PID::Param WHEEL_MOTOR_ID4_VEL_PID_PARAM(200.0f, 20.0f, 1.0f, 15000.0f,15000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
 
     PID LEG_MOTOR_ID1_VEL_PID(LEG_MOTOR_VEL_PID_PARAM);
     PID LEG_MOTOR_ID2_VEL_PID(LEG_MOTOR_VEL_PID_PARAM);
@@ -61,6 +61,10 @@ namespace Applications::Chassis_Task{
     // Global Message Buffers
     Protocol::Reachable_Msg reachable_msg_chassis = {};
     Protocol::PC_Msg pc_msg_chassis = {};
+
+    //State
+    static bool is_free_mode = false;
+    static uint8_t last_button_status = 0;
     
     StackType_t uxChassisTaskStack[2048];
     StaticTask_t xChassisTaskTCB;
@@ -80,22 +84,25 @@ namespace Applications::Chassis_Task{
             Get_PC_Msg(&pc_msg_chassis);
 
             // Decode PC Command to Motor Setpoints
+            Set_Leg_Pos_by_Buttons(&pc_msg_chassis, LEG_Set_Pos, is_free_mode, last_button_status);
             
             // --- Leg Control (GM6020) ---
-            // Left_trigger -> Front Legs (ID2, ID4)
-            // Range: 0 (0.0) -> 1000 (1.0) mapped to 0 degrees -> 360 degrees
-            float L_trigger_val = (float)pc_msg_chassis.Left_trigger_x1000_msg / 1000.0f; // 0.0 ~ 1.0
-            float target_F_leg_angle = L_trigger_val * 360.0f; 
-            LEG_Set_Pos[1] = target_F_leg_angle; // ID2
-            LEG_Set_Pos[3] = target_F_leg_angle; // ID4
+            if(is_free_mode){
+                // Free Mode - Leg Position Control by Triggers
+                // Left_trigger -> Front Legs (ID2, ID4)
+                // Range: 0 (0.0) -> 1000 (1.0) mapped to 0 degrees -> 360 degrees
+                float L_trigger_val = (float)pc_msg_chassis.Left_trigger_x1000_msg / 1000.0f; // 0.0 ~ 1.0
+                float target_F_leg_angle = L_trigger_val * 360.0f; 
+                LEG_Set_Pos[1] = target_F_leg_angle; // ID2
+                LEG_Set_Pos[3] = target_F_leg_angle; // ID4
 
-            // Right_trigger -> Back Legs (ID1, ID3)
-            // Range: 0 (0.0) -> 1000 (1.0) mapped to 0 degrees -> 360 degrees
-            float R_trigger_val = (float)pc_msg_chassis.Right_trigger_x1000_msg / 1000.0f; // 0.0 ~ 1.0
-            float target_B_leg_angle = R_trigger_val * 360.0f;
-            LEG_Set_Pos[0] = target_B_leg_angle; // ID1
-            LEG_Set_Pos[2] = target_B_leg_angle; // ID3
-
+                // Right_trigger -> Back Legs (ID1, ID3)
+                // Range: 0 (0.0) -> 1000 (1.0) mapped to 0 degrees -> 360 degrees
+                float R_trigger_val = (float)pc_msg_chassis.Right_trigger_x1000_msg / 1000.0f; // 0.0 ~ 1.0
+                float target_B_leg_angle = R_trigger_val * 360.0f;
+                LEG_Set_Pos[0] = target_B_leg_angle; // ID1
+                LEG_Set_Pos[2] = target_B_leg_angle; // ID3
+            }
 
             // --- Wheel (M3508) ---
             // Left Joystick r - > Wheel RPM
@@ -104,8 +111,12 @@ namespace Applications::Chassis_Task{
             WHEEL_Set_RPM[1] = Calculate_Wheel_RPM(pc_msg_chassis.left_joystick); // Left Back Wheel (ID3)
             WHEEL_Set_RPM[2] = Calculate_Wheel_RPM(pc_msg_chassis.right_joystick); // Right Front Wheel (ID2)
             WHEEL_Set_RPM[3] = Calculate_Wheel_RPM(pc_msg_chassis.right_joystick); // Right Back Wheel (ID4)
-            
 
+
+            //Compansation
+            WHEEL_Motor_Controller.updateCompensation(LEG_Motors, LEG_Current_Pos, WHEEL_Set_RPM);
+            
+            
             // Control Motors
             LEG_Motor_Controller.setTargetPosition(LEG_Set_Pos, LEG_Current_Pos); 
             WHEEL_Motor_Controller.setTargetRPM(WHEEL_Set_RPM, WHEEL_Current_RPM);
