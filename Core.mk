@@ -100,7 +100,7 @@ CPPFLAGS += -fno-threadsafe-statics					# Disable thread safe statics
 #######################################
 # link script
 # LDSCRIPT = STM32F407VGTx_FLASH.ld
-LDSCRIPT = STM32G473VETx_FLASH.ld
+LDSCRIPT = stm32g473vetx_flash.ld
 
 # # libraries
 LIBS = -lc -lm -lnosys -larm_cortexM4lf_math
