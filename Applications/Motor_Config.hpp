@@ -37,7 +37,7 @@
 // ==========================================
 
 // Maximum wheel RPM
-#define MAX_WHEEL_RPM 60.0f
+#define MAX_WHEEL_RPM 100.0f
 
 // Joystick Parameters
 #define JOYSTICK_MAX_R 1000.0f
@@ -51,3 +51,7 @@
 // Backward range: [210, 330]
 #define ANGLE_BWD_MIN 210.0f
 #define ANGLE_BWD_MAX 330.0f
+
+// Trigger Control Angle Range
+#define LEG_TRIGGER_CTRL_MIN_ANGLE 180.0f
+#define LEG_TRIGGER_CTRL_MAX_ANGLE 360.0f

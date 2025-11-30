@@ -98,19 +98,27 @@ void Chassis_Task(void *pvPara)
         if (is_free_mode)
         {
             // Free Mode - Leg Position Control by Triggers
+
+            // Range Span
+            float angle_range = LEG_TRIGGER_CTRL_MAX_ANGLE - LEG_TRIGGER_CTRL_MIN_ANGLE;
+
             // Left_trigger -> Front Legs (ID2, ID4)
-            // Range: 0 (0.0) -> 1000 (1.0) mapped to 0 degrees -> 360 degrees
-            float L_trigger_val      = (float)pc_msg_chassis.Left_trigger_x1000_msg / 1000.0f;  // 0.0 ~ 1.0
-            float target_F_leg_angle = L_trigger_val * 360.0f;
-            LEG_Set_Pos[1]           = target_F_leg_angle;  // ID2
-            LEG_Set_Pos[3]           = target_F_leg_angle;  // ID4
+            // Range: 0 (0.0) -> 1000 (1.0) mapped to MIN_ANGLE -> MAX_ANGLE
+            float L_trigger_val = (float)pc_msg_chassis.Left_trigger_x1000_msg / 1000.0f;  // 0.0 ~ 1.0
+            // Min + (Ratio * Range)
+            float target_F_leg_angle = LEG_TRIGGER_CTRL_MIN_ANGLE + (L_trigger_val * angle_range);
+
+            LEG_Set_Pos[1] = target_F_leg_angle;  // ID2
+            LEG_Set_Pos[3] = target_F_leg_angle;  // ID4
 
             // Right_trigger -> Back Legs (ID1, ID3)
-            // Range: 0 (0.0) -> 1000 (1.0) mapped to 0 degrees -> 360 degrees
-            float R_trigger_val      = (float)pc_msg_chassis.Right_trigger_x1000_msg / 1000.0f;  // 0.0 ~ 1.0
-            float target_B_leg_angle = R_trigger_val * 360.0f;
-            LEG_Set_Pos[0]           = target_B_leg_angle;  // ID1
-            LEG_Set_Pos[2]           = target_B_leg_angle;  // ID3
+            // Range: 0 (0.0) -> 1000 (1.0) mapped to MIN_ANGLE -> MAX_ANGLE
+            float R_trigger_val = (float)pc_msg_chassis.Right_trigger_x1000_msg / 1000.0f;  // 0.0 ~ 1.0
+            // Min + (Ratio * Range)
+            float target_B_leg_angle = LEG_TRIGGER_CTRL_MIN_ANGLE + (R_trigger_val * angle_range);
+
+            LEG_Set_Pos[0] = target_B_leg_angle;  // ID1
+            LEG_Set_Pos[2] = target_B_leg_angle;  // ID3
         }
 
         // --- Wheel (M3508) ---
