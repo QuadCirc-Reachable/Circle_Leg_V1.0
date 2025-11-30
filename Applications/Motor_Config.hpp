@@ -20,13 +20,10 @@
 
 */
 
-
 #define GM6020_ID1_OFFSET -2.050f
 #define GM6020_ID2_OFFSET -0.070f
 #define GM6020_ID3_OFFSET -0.040f
 #define GM6020_ID4_OFFSET 1.000f
-
-
 
 // ==========================================
 //        Mechanical Parameters
@@ -52,5 +49,5 @@
 #define ANGLE_FWD_MAX 150.0f
 
 // Backward range: [210, 330]
-#define ANGLE_BWD_MIN 210.0f 
+#define ANGLE_BWD_MIN 210.0f
 #define ANGLE_BWD_MAX 330.0f
