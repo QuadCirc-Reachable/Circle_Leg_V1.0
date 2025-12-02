@@ -12,10 +12,10 @@ Motors::GM6020 GM6020_id2(2, 0, Motors::GM6020::ControlMode::CURRENT, true);
 Motors::GM6020 GM6020_id3(3, 0, Motors::GM6020::ControlMode::CURRENT, true);
 Motors::GM6020 GM6020_id4(4, 0, Motors::GM6020::ControlMode::CURRENT, false);
 
-Motors::M3508 M3508_id1(1, 1, 8, 1, false);
-Motors::M3508 M3508_id2(2, 1, 8, 1, false);
-Motors::M3508 M3508_id3(3, 1, 8, 1, true);
-Motors::M3508 M3508_id4(4, 1, 8, 1, true);
+Motors::M3508 M3508_id1(1, 1, 6, 1, false);
+Motors::M3508 M3508_id2(2, 1, 6, 1, false);
+Motors::M3508 M3508_id3(3, 1, 6, 1, true);
+Motors::M3508 M3508_id4(4, 1, 6, 1, true);
 
 // --- PID Definitions  ---
 // Leg Motor PID Params

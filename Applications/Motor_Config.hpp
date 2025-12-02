@@ -53,5 +53,5 @@
 #define ANGLE_BWD_MAX 330.0f
 
 // Trigger Control Angle Range
-#define LEG_TRIGGER_CTRL_MIN_ANGLE 180.0f
+#define LEG_TRIGGER_CTRL_MIN_ANGLE 200.0f
 #define LEG_TRIGGER_CTRL_MAX_ANGLE 360.0f
