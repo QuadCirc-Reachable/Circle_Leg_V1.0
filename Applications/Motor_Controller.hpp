@@ -5,9 +5,9 @@
 #include "Helper.hpp"
 #include "M3508.hpp"
 #include "Math.hpp"
-#include "Motor_Config.hpp"
 #include "PC_Comm.hpp"
 #include "PID.hpp"
+#include "Robot_Params.hpp"
 #include "main.h"
 #include "task.h"
 
@@ -49,7 +49,11 @@ class GM6020_Controller
     // For debugging/logging
     float last_set_positions_deg[LEG_MOTOR_NUM] = {0};
 
+#if USE_6020_LEG_MOTOR
     float motor_offsets_rad[LEG_MOTOR_NUM] = {GM6020_ID1_OFFSET, GM6020_ID2_OFFSET, GM6020_ID3_OFFSET, GM6020_ID4_OFFSET};
+#else
+    float motor_offsets_rad[LEG_MOTOR_NUM] = {0};
+#endif
 };
 
 class M3508_Controller

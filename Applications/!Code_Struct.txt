@@ -1,0 +1,83 @@
+Chassis 
+    Moudle{LEG WHEEL}
+    IMU
+    State
+        -Energy saving Mode -> {Leg Motor output = 0}
+        -Comfort Mode -> {IMU --model(active suspension)--> LEG Compansation
+                          LEG POS ----> 45deg for active suspension  }
+        -Climbing Mode -> {Dont know how to write genral climbing method}
+        -Free Mode -> {ALL depend on the controller}
+    Function
+        active suspension(Not complete yet)
+        Contact Detection？
+
+
+WHEEL_Leg
+    LEG (GM6020 / HT8115)
+    WHEEL (M3508)
+    Function
+        Wheel Compansation(n_{Wheel} = n_{Leg}(1.0f+ \frac{r_{Eccentric\ offset}}{R_{Wheel radius}} cos(\theta_{Leg}))
+        Contact Detection
+)
+
+graph TD
+    User[PC / Remote] -->|Comm Msg| Chassis_Task
+    
+    subgraph Application Layer
+        Chassis_Task -->|Update| Chassis
+        
+        subgraph Robot_Config
+            Chassis o--o Wheel_Leg_FL
+            Chassis o--o Wheel_Leg_FR
+            Chassis o--o Wheel_Leg_BL
+            Chassis o--o Wheel_Leg_BR
+        end
+        
+        Chassis -->|1. Inverse Kinematics| Wheel_Leg_FL
+        Chassis -->|2. Active Suspension| Wheel_Leg_FL
+        
+        Wheel_Leg_FL -->|3. Pipeline Calc| Motors
+    end
+    
+    subgraph Hardware Layer
+        Motors -->|CAN Transmit| Hardware
+        Robot_Params -->|Constants| Wheel_Leg_FL
+    end
+
+
+
+//===============================================
+
+
+    A = {1 ，   1，     1，     1 ；
+        Dm/2， Dm/2，-Dm/2，-Dm/2 ；
+       -Df/2,  Df/2, -Db/2, Db/2    }
+
+    b = { 
+            m(g+ a_z)   ;
+            PID_roll    ;
+            PID_Pitch   ;
+        }
+    
+    x = Torque t = { f1;
+                     f2;
+                     f3;
+                     f4}
+    
+    A_DLS = A^T(AA^T + lamda_1^2 I)^-1
+
+    x= A_DLS * b
+
+    J(theta) = {
+            rcos (theta);
+            0;
+            rsin(theta);
+    }
+    
+Torque 
+    t1 = J^T * f1
+    t2 = J^T * f2
+    t3 = J^T * f3
+    t4 = J^T * f4
+
+//===============================================

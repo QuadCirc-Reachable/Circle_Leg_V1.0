@@ -8,18 +8,18 @@
  * @copyright Copyright (c) 2022
  */
 
+#include "CANManager.hpp"
+#include "Chassis_Task.hpp"
+#include "DJIMotor.hpp"
 #include "FreeRTOS.h"
+#include "HT8115.hpp"
+#include "IMU.hpp"
+#include "PC_Comm.hpp"
+#include "RosComm.hpp"
 #include "gpio.h"
-#include "usart.h"
 #include "main.h"
 #include "task.h"
-
-#include "CANManager.hpp"
-#include "DJIMotor.hpp"
-#include "IMU.hpp"
-#include "Chassis_Task.hpp"
-#include "RosComm.hpp"
-#include "PC_Comm.hpp"
+#include "usart.h"
 
 StackType_t uxBlinkTaskStack[configMINIMAL_STACK_SIZE];
 StaticTask_t xBlinkTaskTCB;
@@ -39,13 +39,16 @@ void blink(void *pvPara)
 /**
  * @brief Create user tasks
  */
-void startUserTasks() {    
-        xTaskCreateStatic(blink, "blink", configMINIMAL_STACK_SIZE, NULL, 0, uxBlinkTaskStack, &xBlinkTaskTCB); 
-        Core::Drivers::CANManager::managers[0].init(&hfdcan1);
-        Core::Drivers::CANManager::managers[1].init(&hfdcan2);
-        Core::Drivers::Motors::DJIMotor::init();
-        Core::Drivers::IMU::init();
-        Core::Communication::RosComm::RosManager::managers[0].init(&huart2);
-        Applications::Command_Task::init();
-        Applications::Chassis_Task::init();
-    }
+void startUserTasks()
+{
+    xTaskCreateStatic(blink, "blink", configMINIMAL_STACK_SIZE, NULL, 0, uxBlinkTaskStack, &xBlinkTaskTCB);
+    Core::Drivers::CANManager::managers[0].init(&hfdcan1);
+    Core::Drivers::CANManager::managers[1].init(&hfdcan2);
+    Core::Drivers::CANManager::managers[2].init(&hfdcan3);
+    Core::Drivers::Motors::HT8115::init();
+    Core::Drivers::Motors::DJIMotor::init();
+    Core::Drivers::IMU::init();
+    Core::Communication::RosComm::RosManager::managers[0].init(&huart2);
+    Applications::Command_Task::init();
+    Applications::Chassis_Task::init();
+}

@@ -227,6 +227,19 @@
     #define USE_LK_MG8016E_I6 0
 #endif // USE_LK_MOTOR
 
+/*=================*
+   HT MOTOR CONFIG
+ *=================*/
+#define USE_HT_MOTOR 1
+#if USE_HT_MOTOR
+    #define HT_MOTOR_CONNECTION_TIMEOUT pdMS_TO_TICKS(200)
+
+    #define HT_MOTOR_USE_CAN1 0
+    #define HT_MOTOR_USE_CAN2 0
+    #define HT_MOTOR_USE_CAN3 1
+    #define USE_HT8115_MOTOR 1
+
+#endif // USE_HT_MOTOR
 
 /*====================*
    SP15D MOTOR CONFIG

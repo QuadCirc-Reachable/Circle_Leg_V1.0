@@ -1,6 +1,6 @@
 #pragma once
 #include "Comm_Msg.hpp"
-#include "Motor_Config.hpp"
+#include "Robot_Params.hpp"
 #define M_PI_F 3.1415926f
 
 // helper functions
