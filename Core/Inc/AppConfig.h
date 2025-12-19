@@ -155,11 +155,11 @@
 #if USE_DJI_MOTOR
     #define DJI_MOTOR_CONNECTION_TIMEOUT pdMS_TO_TICKS(200)
 
-    #define DJI_MOTOR_USE_CAN1 1
+    #define DJI_MOTOR_USE_CAN1 0
     #define DJI_MOTOR_USE_CAN2 1
     #define DJI_MOTOR_USE_CAN3 0
 
-    #define USE_DJI_GM6020 1
+    #define USE_DJI_GM6020 0
     #define USE_DJI_M2006 0
     #define USE_DJI_M3508 1
 #endif // USE_DJI_MOTOR
@@ -234,9 +234,9 @@
 #if USE_HT_MOTOR
     #define HT_MOTOR_CONNECTION_TIMEOUT pdMS_TO_TICKS(200)
 
-    #define HT_MOTOR_USE_CAN1 0
+    #define HT_MOTOR_USE_CAN1 1
     #define HT_MOTOR_USE_CAN2 0
-    #define HT_MOTOR_USE_CAN3 1
+    #define HT_MOTOR_USE_CAN3 0
     #define USE_HT8115_MOTOR 1
 
 #endif // USE_HT_MOTOR

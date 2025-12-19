@@ -424,13 +424,25 @@ void Chassis::handleComfortMode(const Protocol::PC_Msg &cmd)
 
     // 7. Send Wheel Commands (Leg Height is already sent in Step 5)
     if (FL_WheelLegs_)
+    {
         FL_WheelLegs_->Set_Wheel_Target(wheel_rpms[0]);
+        FL_WheelLegs_->Add_Wheel_Compensation(FL_WheelLegs_->Wheel_Compensation());
+    }
     if (FR_WheelLegs_)
+    {
         FR_WheelLegs_->Set_Wheel_Target(wheel_rpms[1]);
+        FR_WheelLegs_->Add_Wheel_Compensation(FR_WheelLegs_->Wheel_Compensation());
+    }
     if (BL_WheelLegs_)
+    {
         BL_WheelLegs_->Set_Wheel_Target(wheel_rpms[2]);
+        BL_WheelLegs_->Add_Wheel_Compensation(BL_WheelLegs_->Wheel_Compensation());
+    }
     if (BR_WheelLegs_)
+    {
         BR_WheelLegs_->Set_Wheel_Target(wheel_rpms[3]);
+        BR_WheelLegs_->Add_Wheel_Compensation(BR_WheelLegs_->Wheel_Compensation());
+    }
 
     if (FL_WheelLegs_)
         FL_WheelLegs_->Execute_Wheel_Control();
@@ -459,18 +471,6 @@ void Chassis::handleFreeControl(const Protocol::PC_Msg &cmd)
     float trigger_val = (float)cmd.Right_trigger_x1000_msg / 1000.0f - (float)cmd.Left_trigger_x1000_msg / 1000.0f;
     leg_pos += trigger_val * 45.0f;  // +/- 45 degrees range
 
-    // Wheel control same as Comfort
-    float wheel_rpms[4];
-    float vx = (float)cmd.left_joystick.r_x1000_msg / 1000.0f * MAX_WHEEL_RPM;
-    if (cmd.left_joystick.angle_x10_msg > 900 && cmd.left_joystick.angle_x10_msg < 2700)
-        vx = -vx;
-
-    float wz = (float)cmd.right_joystick.r_x1000_msg / 1000.0f * MAX_WHEEL_RPM * 0.5f;
-    if (cmd.right_joystick.angle_x10_msg > 1800)
-        wz = -wz;
-
-    inverseKinematics(vx, 0, wz, wheel_rpms);
-
     Wheel_Leg_Params params;
     params.state     = Chassis_State::FREE_CONTROL;
     params.Leg_POS   = leg_pos;
@@ -479,6 +479,17 @@ void Chassis::handleFreeControl(const Protocol::PC_Msg &cmd)
     // Use default stiff parameters for position control
     params.Leg_Kp = 50.0f;
     params.Leg_Kd = 1.0f;
+
+    // Wheel control same as Comfort
+    // Wheel control same as Comfort
+    float wheel_rpms[4];
+
+    // Use Controller to decode joystick commands
+    float vx = 0.0f;
+    float wz = 0.0f;
+    controller_.Map_Joystick_To_Velocity(cmd, vx, wz);
+
+    inverseKinematics(vx, 0, wz, wheel_rpms);
 
     for (int i = 0; i < 4; i++)
     {
@@ -498,36 +509,53 @@ void Chassis::handleEnergySaving(const Protocol::PC_Msg &cmd)
 {
     // Wheel control same as Comfort
     float wheel_rpms[4];
-    float vx = (float)cmd.left_joystick.r_x1000_msg / 1000.0f * MAX_WHEEL_RPM;
-    if (cmd.left_joystick.angle_x10_msg > 900 && cmd.left_joystick.angle_x10_msg < 2700)
-        vx = -vx;
 
-    float wz = (float)cmd.right_joystick.r_x1000_msg / 1000.0f * MAX_WHEEL_RPM * 0.5f;
-    if (cmd.right_joystick.angle_x10_msg > 1800)
-        wz = -wz;
+    // Use Controller to decode joystick commands
+    float vx = 0.0f;
+    float wz = 0.0f;
+    controller_.Map_Joystick_To_Velocity(cmd, vx, wz);
 
     inverseKinematics(vx, 0, wz, wheel_rpms);
 
-    Wheel_Leg_Params params;
-    params.state     = Chassis_State::ENERGY_SAVING;  // Use Energy Saving State
-    params.Leg_POS   = 0;                             // Lower legs to minimum height
-    params.Leg_Force = 0;                             // No force
-    params.Leg_RPM   = 0;
-    params.Leg_Kp    = 50.0f;
-    params.Leg_Kd    = 1.0f;
+    // 7. Send Wheel Commands (Leg Height is already sent in Step 5)
+    if (FL_WheelLegs_)
+        FL_WheelLegs_->Set_Wheel_Target(wheel_rpms[0]);
+    if (FR_WheelLegs_)
+        FR_WheelLegs_->Set_Wheel_Target(wheel_rpms[1]);
+    if (BL_WheelLegs_)
+        BL_WheelLegs_->Set_Wheel_Target(wheel_rpms[2]);
+    if (BR_WheelLegs_)
+        BR_WheelLegs_->Set_Wheel_Target(wheel_rpms[3]);
 
-    for (int i = 0; i < 4; i++)
+    if (FL_WheelLegs_)
     {
-        params.Wheel_RPM = wheel_rpms[i];
-        if (i == 0 && FL_WheelLegs_)
-            FL_WheelLegs_->Set_Wheel_Leg(params);
-        if (i == 1 && FR_WheelLegs_)
-            FR_WheelLegs_->Set_Wheel_Leg(params);
-        if (i == 2 && BL_WheelLegs_)
-            BL_WheelLegs_->Set_Wheel_Leg(params);
-        if (i == 3 && BR_WheelLegs_)
-            BR_WheelLegs_->Set_Wheel_Leg(params);
+        FL_WheelLegs_->Set_Leg_Height(WHEEL_RADIUS_R - ECCENTRIC_OFFSET_r, 0.0f);
+        FL_WheelLegs_->Execute_Wheel_Control();
     }
+    if (FR_WheelLegs_)
+    {
+        FR_WheelLegs_->Set_Leg_Height(WHEEL_RADIUS_R - ECCENTRIC_OFFSET_r, 0.0f);
+        FR_WheelLegs_->Execute_Wheel_Control();
+    }
+    if (BL_WheelLegs_)
+    {
+        BL_WheelLegs_->Set_Leg_Height(WHEEL_RADIUS_R - ECCENTRIC_OFFSET_r, 0.0f);
+        BL_WheelLegs_->Execute_Wheel_Control();
+    }
+    if (BR_WheelLegs_)
+    {
+        BR_WheelLegs_->Set_Leg_Height(WHEEL_RADIUS_R - ECCENTRIC_OFFSET_r, 0.0f);
+        BR_WheelLegs_->Execute_Wheel_Control();
+    }
+
+    if (FL_WheelLegs_)
+        FL_WheelLegs_->Execute_Leg_Control();
+    if (FR_WheelLegs_)
+        FR_WheelLegs_->Execute_Leg_Control();
+    if (BL_WheelLegs_)
+        BL_WheelLegs_->Execute_Leg_Control();
+    if (BR_WheelLegs_)
+        BR_WheelLegs_->Execute_Leg_Control();
 }
 
 void Chassis::handleClimbingMode(const Protocol::PC_Msg &cmd)

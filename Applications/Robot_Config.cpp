@@ -27,10 +27,10 @@ Motors::GM6020 Leg_Motor_BR(4, 0, Motors::GM6020::ControlMode::CURRENT, false); 
 // FL: ID2, FR: ID3, BL: ID1, BR: ID4 (Based on code below)
 // Note: Ref/RM2024-Balanced-Infantry uses CAN2 (index 1) and IDs: FL=1, BL=2, FR=3, BR=4.
 // If using the same hardware, verify CAN bus and IDs.
-Motors::HT8115 Leg_Motor_FL(2, 2, false);  // ID 2, CAN 3
-Motors::HT8115 Leg_Motor_FR(3, 2, true);   // ID 3, CAN 3
-Motors::HT8115 Leg_Motor_BL(1, 2, true);   // ID 1, CAN 3
-Motors::HT8115 Leg_Motor_BR(4, 2, false);  // ID 4, CAN 3
+Motors::HT8115 Leg_Motor_FL(2, 0, false);  // ID 2, CAN 3
+Motors::HT8115 Leg_Motor_FR(3, 0, true);   // ID 3, CAN 3
+Motors::HT8115 Leg_Motor_BL(1, 0, true);   // ID 1, CAN 3
+Motors::HT8115 Leg_Motor_BR(4, 0, false);  // ID 4, CAN 3
 #endif
 
 // ==========================================
@@ -78,15 +78,15 @@ MIT_Params Leg_MIT_Param_BR = {.Position = 0, .Velocity = 0, .Pos_KP = 35.0f, .V
 // ==========================================
 
 #if USE_6020_LEG_MOTOR
-Wheel_Leg FL_Leg(&M3508_FL, &Wheel_PID_FL, &Leg_Motor_FL, &Leg_Vel_PID_FL, &Leg_Pos_PID_FL, GM6020_ID3_OFFSET, 1);
-Wheel_Leg FR_Leg(&M3508_FR, &Wheel_PID_FR, &Leg_Motor_FR, &Leg_Vel_PID_FR, &Leg_Pos_PID_FR, GM6020_ID1_OFFSET, 1);
-Wheel_Leg BL_Leg(&M3508_BL, &Wheel_PID_BL, &Leg_Motor_BL, &Leg_Vel_PID_BL, &Leg_Pos_PID_BL, GM6020_ID2_OFFSET, -1);
-Wheel_Leg BR_Leg(&M3508_BR, &Wheel_PID_BR, &Leg_Motor_BR, &Leg_Vel_PID_BR, &Leg_Pos_PID_BR, GM6020_ID4_OFFSET, -1);
+Wheel_Leg FL_Leg(&M3508_FL, &Wheel_PID_FL, &Leg_Motor_FL, &Leg_Vel_PID_FL, &Leg_Pos_PID_FL, GM6020_ID3_OFFSET, 1, -1.0f);
+Wheel_Leg FR_Leg(&M3508_FR, &Wheel_PID_FR, &Leg_Motor_FR, &Leg_Vel_PID_FR, &Leg_Pos_PID_FR, GM6020_ID1_OFFSET, 1, -1.0f);
+Wheel_Leg BL_Leg(&M3508_BL, &Wheel_PID_BL, &Leg_Motor_BL, &Leg_Vel_PID_BL, &Leg_Pos_PID_BL, GM6020_ID2_OFFSET, -1, 1.0f);
+Wheel_Leg BR_Leg(&M3508_BR, &Wheel_PID_BR, &Leg_Motor_BR, &Leg_Vel_PID_BR, &Leg_Pos_PID_BR, GM6020_ID4_OFFSET, -1, 1.0f);
 #elif USE_HT_LEG_MOTOR
-Wheel_Leg FL_Leg(&M3508_FL, &Wheel_PID_FL, &Leg_Motor_FL, Leg_MIT_Param_FL, HT8115_ID3_OFFSET, 1);
-Wheel_Leg FR_Leg(&M3508_FR, &Wheel_PID_FR, &Leg_Motor_FR, Leg_MIT_Param_FR, HT8115_ID1_OFFSET, 1);
-Wheel_Leg BL_Leg(&M3508_BL, &Wheel_PID_BL, &Leg_Motor_BL, Leg_MIT_Param_BL, HT8115_ID2_OFFSET, 1);
-Wheel_Leg BR_Leg(&M3508_BR, &Wheel_PID_BR, &Leg_Motor_BR, Leg_MIT_Param_BR, HT8115_ID4_OFFSET, 1);
+Wheel_Leg FL_Leg(&M3508_FL, &Wheel_PID_FL, &Leg_Motor_FL, Leg_MIT_Param_FL, HT8115_ID3_OFFSET, 1, -1.0f);
+Wheel_Leg FR_Leg(&M3508_FR, &Wheel_PID_FR, &Leg_Motor_FR, Leg_MIT_Param_FR, HT8115_ID1_OFFSET, 1, -1.0f);
+Wheel_Leg BL_Leg(&M3508_BL, &Wheel_PID_BL, &Leg_Motor_BL, Leg_MIT_Param_BL, HT8115_ID2_OFFSET, 1, 1.0f);
+Wheel_Leg BR_Leg(&M3508_BR, &Wheel_PID_BR, &Leg_Motor_BR, Leg_MIT_Param_BR, HT8115_ID4_OFFSET, 1, 1.0f);
 #endif
 
 // ==========================================

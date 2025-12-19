@@ -11,14 +11,16 @@ Wheel_Leg::Wheel_Leg(Motors::M3508 *wheel_motor_,
                      PID *Leg_Vel_PIDs_,
                      PID *Leg_Pos_PIDs_,
                      float leg_offset_,
-                     int bending_direction)
+                     int bending_direction,
+                     float wheel_coupling_sign)
     : wheel_motor(wheel_motor_),
       Wheel_Vel_PIDs(Wheel_Vel_PIDs_),
       leg_motor(leg_motor_),
       Leg_Vel_PIDs(Leg_Vel_PIDs_),
       Leg_Pos_PIDs(Leg_Pos_PIDs_),
       leg_offset(leg_offset_),
-      bending_direction_(bending_direction)
+      bending_direction_(bending_direction),
+      wheel_coupling_sign_(wheel_coupling_sign)
 {
     info.Wheel_RPM = 0.0f;
     info.Leg_POS   = 0.0f;
@@ -26,13 +28,19 @@ Wheel_Leg::Wheel_Leg(Motors::M3508 *wheel_motor_,
     info.Leg_RPM   = 0.0f;
 }
 #elif USE_HT_LEG_MOTOR
-Wheel_Leg::Wheel_Leg(
-    Motors::M3508 *wheel_motor_, PID *Wheel_Vel_PIDs_, Motors::HT8115 *leg_motor_, MIT_Params mit_pid_, float leg_offset_, int bending_direction)
+Wheel_Leg::Wheel_Leg(Motors::M3508 *wheel_motor_,
+                     PID *Wheel_Vel_PIDs_,
+                     Motors::HT8115 *leg_motor_,
+                     MIT_Params mit_pid_,
+                     float leg_offset_,
+                     int bending_direction,
+                     float wheel_coupling_sign)
     : wheel_motor(wheel_motor_),
       Wheel_Vel_PIDs(Wheel_Vel_PIDs_),
       leg_motor(leg_motor_),
       leg_offset(leg_offset_),
-      bending_direction_(bending_direction)
+      bending_direction_(bending_direction),
+      wheel_coupling_sign_(wheel_coupling_sign)
 {
     mit_set.Position    = 0.0f;
     mit_set.Velocity    = 0.0f;
@@ -108,7 +116,7 @@ float Wheel_Leg::Wheel_Compensation()
 #endif
 
     float compensation_rpm = leg_rpm * (1.0f + (ECCENTRIC_OFFSET_r / WHEEL_RADIUS_R) * cosf(deg2rad(leg_pos)));
-    return compensation_rpm;
+    return compensation_rpm * wheel_coupling_sign_;
 }
 
 float Wheel_Leg::VMC_Calculation(float F_z)

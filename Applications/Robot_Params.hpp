@@ -68,7 +68,7 @@
 
 // IMU Mounting Orientation (Relative to Chassis Frame)
 // Unit: Degrees
-#define IMU_MOUNT_ROLL_DEG 180.0f
+#define IMU_MOUNT_ROLL_DEG 182.91f
 #define IMU_MOUNT_PITCH_DEG 0.0f
 #define IMU_MOUNT_YAW_DEG 0.0f
 

@@ -82,7 +82,8 @@ class Wheel_Leg
     float prev_leg_pos_cmd = 0.0f;
 
     // Configuration
-    int bending_direction_ = 1;  // 1 for Positive Angle solution, -1 for Negative Angle solution
+    int bending_direction_     = 1;  // 1 for Positive Angle solution, -1 for Negative Angle solution
+    float wheel_coupling_sign_ = 1.0f;
 
    public:
 #if USE_6020_LEG_MOTOR
@@ -91,15 +92,17 @@ class Wheel_Leg
               Motors::GM6020 *leg_motor_,
               PID *Leg_Vel_PIDs_,
               PID *Leg_Pos_PIDs_,
-              float leg_offset_     = 0.0f,
-              int bending_direction = 1);
+              float leg_offset_         = 0.0f,
+              int bending_direction     = 1,
+              float wheel_coupling_sign = 1.0f);
 #elif USE_HT_LEG_MOTOR
     Wheel_Leg(Motors::M3508 *wheel_motor_,
               PID *Wheel_Vel_PIDs_,
               Motors::HT8115 *leg_motor_,
               MIT_Params mit_pid_,
-              float leg_offset_     = 0.0f,
-              int bending_direction = 1);
+              float leg_offset_         = 0.0f,
+              int bending_direction     = 1,
+              float wheel_coupling_sign = 1.0f);
 #endif
 
     //====================//
