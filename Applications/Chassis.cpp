@@ -12,8 +12,8 @@ using namespace Core::Drivers;
 // Adjust these based on actual tuning
 // Output limit is now in METERS.
 // Max travel is 2*r = 130mm = 0.13m. Set limit to 0.15m to allow full range.
-static Core::Control::PID::Param roll_pid_param(0.005f, 0.0f, 0.0f, 1000.0f, 0.15f);
-static Core::Control::PID::Param pitch_pid_param(0.005f, 0.0f, 0.0f, 1000.0f, 0.15f);
+static Core::Control::PID::Param roll_pid_param(0.005f, 0.0001f, 0.0f, 1000.0f, 0.15f);
+static Core::Control::PID::Param pitch_pid_param(0.005f, 0.0001f, 0.0f, 1000.0f, 0.15f);
 
 static Core::Control::PID roll_pid(roll_pid_param);
 static Core::Control::PID pitch_pid(pitch_pid_param);
