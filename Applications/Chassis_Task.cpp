@@ -17,6 +17,12 @@ StaticTask_t xChassisTaskTCB;
 
 void Chassis_Task(void *pvPara)
 {
+    // Wait for HT motors to boot after power-on
+    // HT8115 internal MCU needs ~500ms to initialize CAN interface
+    // Without this delay, ENTER_MOTOR commands sent during Init() are lost
+    // (This is why it works under Ozone but not standalone: the debugger adds implicit delay)
+    vTaskDelay(pdMS_TO_TICKS(3000));
+
     // Initialize Chassis (Motors, PIDs, etc.)
     chassis.Init();
 

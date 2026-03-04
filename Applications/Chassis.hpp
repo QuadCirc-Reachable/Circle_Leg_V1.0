@@ -104,6 +104,10 @@ class Chassis
 
     // 运动学解算：将底盘整体速度(Vx, Vy, Wz)分解为4个轮子的速度
     void inverseKinematics(float vx, float vy, float wz, float *out_wheel_rpms);
+
+    // Helper functions
+    float CalculateHeightFromAngle(float angle_deg);
+    void SetBendingDirection(int fl, int fr, int bl, int br);
 };
 
 }  // namespace Applications

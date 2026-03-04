@@ -70,12 +70,12 @@ void Wheel_Leg::Init()
     {
         leg_motor->enable();
 
-        // Send multiple times to ensure reception during startup
-        // Ref: RM2024-Balanced-Infantry sends it 10 times with 1ms delay
-        for (int i = 0; i < 10; i++)
+        // Send ENTER_MOTOR multiple times to ensure reception
+        // HT motors may need several attempts after power-on
+        for (int i = 0; i < 20; i++)
         {
             leg_motor->sendCommand(Motors::HT8115::SpecialCommands::ENTER_MOTOR);
-            vTaskDelay(pdMS_TO_TICKS(2));
+            vTaskDelay(pdMS_TO_TICKS(5));
         }
     }
 #endif
@@ -354,6 +354,17 @@ void Wheel_Leg::Add_Leg_Compensation(float comp_pos, float comp_vel, float comp_
 void Wheel_Leg::Execute_Leg_Control()
 {
     float raw_target_pos = target_leg_pos + leg_compensation_pos;
+
+    // Unwrap target position relative to previous command to find shortest path
+    // and avoid jumps for the Slew Rate Limiter
+    float diff = raw_target_pos - prev_leg_pos_cmd;
+    // Normalize diff to [-180, 180]
+    while (diff > 180.0f)
+        diff -= 360.0f;
+    while (diff < -180.0f)
+        diff += 360.0f;
+
+    raw_target_pos = prev_leg_pos_cmd + diff;
 
     // Slew Rate Limiter (Ramp)
     // Limit the change in position per update to prevent violent movements

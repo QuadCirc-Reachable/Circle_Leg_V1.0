@@ -38,10 +38,10 @@ Motors::HT8115 Leg_Motor_BR(4, 0, false);  // ID 4, CAN 3
 // ==========================================
 
 // --- Wheel Velocity PIDs ---
-PID::Param WHEEL_VEL_PID_PARAM_FL(400.0f, 150.0f, 0.0f, 15000.0f, 16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
-PID::Param WHEEL_VEL_PID_PARAM_FR(400.0f, 150.0f, 0.0f, 15000.0f, 16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
-PID::Param WHEEL_VEL_PID_PARAM_BL(400.0f, 150.0f, 0.0f, 15000.0f, 16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
-PID::Param WHEEL_VEL_PID_PARAM_BR(400.0f, 150.0f, 0.0f, 15000.0f, 16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
+PID::Param WHEEL_VEL_PID_PARAM_FL(200.0f, 180.0f, 1.0f, 15000.0f, 16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
+PID::Param WHEEL_VEL_PID_PARAM_FR(200.0f, 180.0f, 1.0f, 15000.0f, 16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
+PID::Param WHEEL_VEL_PID_PARAM_BL(200.0f, 180.0f, 1.0f, 15000.0f, 16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
+PID::Param WHEEL_VEL_PID_PARAM_BR(200.0f, 180.0f, 1.0f, 15000.0f, 16000.0f, 0.0f, 0.0f, 0.2f, pdMS_TO_TICKS(2));
 
 PID Wheel_PID_FL(WHEEL_VEL_PID_PARAM_FL);
 PID Wheel_PID_FR(WHEEL_VEL_PID_PARAM_FR);

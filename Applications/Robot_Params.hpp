@@ -94,9 +94,9 @@
 // ==========================================
 
 // Maximum wheel RPM
-#define MAX_WHEEL_RPM 200.0f
-#define MAX_FORWARD_RPM 100.0f
-#define MAX_TURN_RPM 100.0f
+#define MAX_WHEEL_RPM 160.0f
+#define MAX_FORWARD_RPM 80.0f
+#define MAX_TURN_RPM 80.0f
 
 // Maximum Leg Speed (Degrees per second)
 // Used for Slew Rate Limiter to prevent violent movements

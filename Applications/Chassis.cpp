@@ -1,6 +1,7 @@
 #include "Chassis.hpp"
 
 #include "Matrixf.hpp"
+#include "PC_Comm.hpp"
 #include "PID.hpp"
 #include "Quaternion.hpp"
 
@@ -12,8 +13,8 @@ using namespace Core::Drivers;
 // Adjust these based on actual tuning
 // Output limit is now in METERS.
 // Max travel is 2*r = 130mm = 0.13m. Set limit to 0.15m to allow full range.
-static Core::Control::PID::Param roll_pid_param(0.005f, 0.0001f, 0.0f, 1000.0f, 0.15f);
-static Core::Control::PID::Param pitch_pid_param(0.005f, 0.0001f, 0.0f, 1000.0f, 0.15f);
+static Core::Control::PID::Param roll_pid_param(0.004f, 0.00015f, 0.00001f, 1000.0f, 0.15f);
+static Core::Control::PID::Param pitch_pid_param(0.004f, 0.0001f, 0.00001f, 1000.0f, 0.15f);
 
 static Core::Control::PID roll_pid(roll_pid_param);
 static Core::Control::PID pitch_pid(pitch_pid_param);
@@ -59,17 +60,42 @@ void Chassis::Set_Mode(Chassis_State new_state)
 
 void Chassis::Update(const Protocol::PC_Msg &cmd)
 {
-    // Check for Debug State Command from Ozone
-    if (debug_state_cmd >= 0)
+    // Check connection first
+    if (!Applications::Command_Task::Is_PC_Connected())
     {
-        Set_Mode(static_cast<Chassis_State>(debug_state_cmd));
-        debug_state_cmd = -1;  // Reset command
+        if (current_state_ != Chassis_State::IDLE)
+        {
+            Set_Mode(Chassis_State::IDLE);
+        }
+
+        // Force update of last button to prevent immediate jump on reconnect
+        // Setting to 0xFF means all buttons are considered "previously pressed"
+        // So a held button on reconnect (1) won't trigger a rising edge (1->1 no change, or 0->1 rising)
+        // logic: rising = (current ^ last) & current
+        // If held on reconnect: current=1, last=0xFF. changed=0xFE. rising=0. SAFE.
+        last_button_status_ = 0xFF;
+
+        // Stop motors immediately for safety
+        Wheel_Leg_Params stop_params = {0};
+        stop_params.state            = Chassis_State::IDLE;
+
+        if (FL_WheelLegs_)
+            FL_WheelLegs_->Set_Wheel_Leg(stop_params);
+        if (FR_WheelLegs_)
+            FR_WheelLegs_->Set_Wheel_Leg(stop_params);
+        if (BL_WheelLegs_)
+            BL_WheelLegs_->Set_Wheel_Leg(stop_params);
+        if (BR_WheelLegs_)
+            BR_WheelLegs_->Set_Wheel_Leg(stop_params);
+
+        return;
     }
 
-    // --- State Switching Logic ---
+    // Extract buttons
     uint8_t current_buttons = cmd.button_status;
-    uint8_t changed_buttons = current_buttons ^ last_button_status_;
-    uint8_t rising_edges    = changed_buttons & current_buttons;
+    uint8_t changing_edges  = current_buttons ^ last_button_status_;
+    uint8_t rising_edges    = changing_edges & current_buttons;
+    last_button_status_     = current_buttons;
 
     bool ml_pressed = (current_buttons & BTN_ML);
     bool mr_pressed = (current_buttons & BTN_MR);
@@ -132,17 +158,17 @@ void Chassis::Update(const Protocol::PC_Msg &cmd)
             BR_WheelLegs_->Set_Wheel_Leg(stop_params);
         break;
     }
-    case Chassis_State::COMFORT:
-        handleComfortMode(cmd);
-        break;
-    case Chassis_State::FREE_CONTROL:
-        handleFreeControl(cmd);
-        break;
     case Chassis_State::ENERGY_SAVING:
         handleEnergySaving(cmd);
         break;
+    case Chassis_State::COMFORT:
+        handleComfortMode(cmd);
+        break;
     case Chassis_State::CLIMBING:
         handleClimbingMode(cmd);
+        break;
+    case Chassis_State::FREE_CONTROL:
+        handleFreeControl(cmd);
         break;
     default:
         break;
@@ -206,52 +232,44 @@ void Chassis::handleComfortMode(const Protocol::PC_Msg &cmd)
     imu_roll_pv  = chassis_roll;
 
     // Button Control for Target Height
-    float R_val = WHEEL_RADIUS_R / 1000.0f;
-    float r_val = ECCENTRIC_OFFSET_r / 1000.0f;
 
-    auto angle_to_height = [&](float angle_deg) { return R_val + r_val * cosf(deg2rad(angle_deg)); };
-
-    auto set_bending_dir = [&](int dir)
-    {
-        if (FL_WheelLegs_)
-            FL_WheelLegs_->Set_Bending_Direction(dir);
-        if (FR_WheelLegs_)
-            FR_WheelLegs_->Set_Bending_Direction(dir);
-        if (BL_WheelLegs_)
-            BL_WheelLegs_->Set_Bending_Direction(dir);
-        if (BR_WheelLegs_)
-            BR_WheelLegs_->Set_Bending_Direction(dir);
-    };
-
+    //==========================================================================================
+    //====================== Button Mappings for Target Heights ================================
+    // X: 90 deg
     if (cmd.button_status & BTN_X)
     {
-        target_chassis_height_ = angle_to_height(90.0f);
-        set_bending_dir(1);
+        target_chassis_height_ = CalculateHeightFromAngle(90.0f);
+        SetBendingDirection(1, 1, 1, 1);
     }
+    // Y: 145 deg
     else if (cmd.button_status & BTN_Y)
     {
-        target_chassis_height_ = angle_to_height(145.0f);
-        set_bending_dir(1);
+        target_chassis_height_ = CalculateHeightFromAngle(145.0f);
+        SetBendingDirection(1, 1, 1, 1);
     }
+    // A: 45 deg
     else if (cmd.button_status & BTN_A)
     {
-        target_chassis_height_ = angle_to_height(45.0f);
-        set_bending_dir(1);
+        target_chassis_height_ = CalculateHeightFromAngle(45.0f);
+        SetBendingDirection(1, 1, 1, 1);
     }
+    // B: 165 deg
     else if (cmd.button_status & BTN_B)
     {
-        target_chassis_height_ = angle_to_height(165.0f);
-        set_bending_dir(1);
+        target_chassis_height_ = CalculateHeightFromAngle(165.0f);
+        SetBendingDirection(1, 1, 1, 1);
     }
+    // RB: 135 deg
     else if (cmd.button_status & BTN_RB)
     {
-        target_chassis_height_ = angle_to_height(135.0f);
-        set_bending_dir(-1);
+        target_chassis_height_ = CalculateHeightFromAngle(135.0f);
+        SetBendingDirection(-1, -1, -1, -1);
     }
+    // LB: 90 deg
     else if (cmd.button_status & BTN_LB)
     {
-        target_chassis_height_ = angle_to_height(90.0f);
-        set_bending_dir(-1);
+        target_chassis_height_ = CalculateHeightFromAngle(90.0f);
+        SetBendingDirection(-1, -1, -1, -1);
     }
 
     // Transform Acceleration (Linear)
@@ -412,6 +430,9 @@ void Chassis::handleComfortMode(const Protocol::PC_Msg &cmd)
     if (BR_WheelLegs_)
         BR_WheelLegs_->Set_Leg_Height(h_br, v_br);
 
+    //=============================================================================================
+    // ================  Wheel Velocity Control  =================================================
+    //=============================================================================================
     // 6. Wheel Control (Velocity)
     float wheel_rpms[4];
 
@@ -465,15 +486,21 @@ void Chassis::handleComfortMode(const Protocol::PC_Msg &cmd)
 
 void Chassis::handleFreeControl(const Protocol::PC_Msg &cmd)
 {
-    // Direct control of leg height via Triggers
-    float leg_pos = INITIAL_LEG_ANGLE;
-    // Example: LT lowers, RT raises
-    float trigger_val = (float)cmd.Right_trigger_x1000_msg / 1000.0f - (float)cmd.Left_trigger_x1000_msg / 1000.0f;
-    leg_pos += trigger_val * 45.0f;  // +/- 45 degrees range
+    static float folded_angle = 180.0f;
+
+    // Triggers Control Angle Interpolation
+    // Left Trigger: FL & FR
+    // Right Trigger: BL & BR
+    // 0 (Released) -> folded_angle
+    // 1000 (Pressed) -> 0 deg (Extended)
+    float l_ratio = (float)cmd.Left_trigger_x1000_msg / 1000.0f;
+    float r_ratio = (float)cmd.Right_trigger_x1000_msg / 1000.0f;
+
+    float fl_fr_angle = -folded_angle * (1.0f - l_ratio);
+    float bl_br_angle = folded_angle * (1.0f - r_ratio);
 
     Wheel_Leg_Params params;
     params.state     = Chassis_State::FREE_CONTROL;
-    params.Leg_POS   = leg_pos;
     params.Leg_Force = 0;
     params.Leg_RPM   = 0;
     // Use default stiff parameters for position control
@@ -481,7 +508,6 @@ void Chassis::handleFreeControl(const Protocol::PC_Msg &cmd)
     params.Leg_Kd = 1.0f;
 
     // Wheel control same as Comfort
-    // Wheel control same as Comfort
     float wheel_rpms[4];
 
     // Use Controller to decode joystick commands
@@ -491,22 +517,42 @@ void Chassis::handleFreeControl(const Protocol::PC_Msg &cmd)
 
     inverseKinematics(vx, 0, wz, wheel_rpms);
 
-    for (int i = 0; i < 4; i++)
+    if (FL_WheelLegs_)
     {
-        params.Wheel_RPM = wheel_rpms[i];
-        if (i == 0 && FL_WheelLegs_)
-            FL_WheelLegs_->Set_Wheel_Leg(params);
-        if (i == 1 && FR_WheelLegs_)
-            FR_WheelLegs_->Set_Wheel_Leg(params);
-        if (i == 2 && BL_WheelLegs_)
-            BL_WheelLegs_->Set_Wheel_Leg(params);
-        if (i == 3 && BR_WheelLegs_)
-            BR_WheelLegs_->Set_Wheel_Leg(params);
+        params.Leg_POS   = fl_fr_angle;
+        params.Wheel_RPM = wheel_rpms[0];
+        FL_WheelLegs_->Set_Wheel_Leg(params);
+    }
+    if (FR_WheelLegs_)
+    {
+        params.Leg_POS   = fl_fr_angle;
+        params.Wheel_RPM = wheel_rpms[1];
+        FR_WheelLegs_->Set_Wheel_Leg(params);
+    }
+    if (BL_WheelLegs_)
+    {
+        params.Leg_POS   = bl_br_angle;
+        params.Wheel_RPM = wheel_rpms[2];
+        BL_WheelLegs_->Set_Wheel_Leg(params);
+    }
+    if (BR_WheelLegs_)
+    {
+        params.Leg_POS   = bl_br_angle;
+        params.Wheel_RPM = wheel_rpms[3];
+        BR_WheelLegs_->Set_Wheel_Leg(params);
     }
 }
 
 void Chassis::handleEnergySaving(const Protocol::PC_Msg &cmd)
 {
+    Wheel_Leg_Params params;
+    params.state     = Chassis_State::ENERGY_SAVING;
+    params.Leg_POS   = 0.0f;
+    params.Leg_Force = 0;
+    params.Leg_RPM   = 0;
+    params.Leg_Kp    = 50.0f;
+    params.Leg_Kd    = 1.0f;
+
     // Wheel control same as Comfort
     float wheel_rpms[4];
 
@@ -517,45 +563,26 @@ void Chassis::handleEnergySaving(const Protocol::PC_Msg &cmd)
 
     inverseKinematics(vx, 0, wz, wheel_rpms);
 
-    // 7. Send Wheel Commands (Leg Height is already sent in Step 5)
-    if (FL_WheelLegs_)
-        FL_WheelLegs_->Set_Wheel_Target(wheel_rpms[0]);
-    if (FR_WheelLegs_)
-        FR_WheelLegs_->Set_Wheel_Target(wheel_rpms[1]);
-    if (BL_WheelLegs_)
-        BL_WheelLegs_->Set_Wheel_Target(wheel_rpms[2]);
-    if (BR_WheelLegs_)
-        BR_WheelLegs_->Set_Wheel_Target(wheel_rpms[3]);
-
     if (FL_WheelLegs_)
     {
-        FL_WheelLegs_->Set_Leg_Height(WHEEL_RADIUS_R - ECCENTRIC_OFFSET_r, 0.0f);
-        FL_WheelLegs_->Execute_Wheel_Control();
+        params.Wheel_RPM = wheel_rpms[0];
+        FL_WheelLegs_->Set_Wheel_Leg(params);
     }
     if (FR_WheelLegs_)
     {
-        FR_WheelLegs_->Set_Leg_Height(WHEEL_RADIUS_R - ECCENTRIC_OFFSET_r, 0.0f);
-        FR_WheelLegs_->Execute_Wheel_Control();
+        params.Wheel_RPM = wheel_rpms[1];
+        FR_WheelLegs_->Set_Wheel_Leg(params);
     }
     if (BL_WheelLegs_)
     {
-        BL_WheelLegs_->Set_Leg_Height(WHEEL_RADIUS_R - ECCENTRIC_OFFSET_r, 0.0f);
-        BL_WheelLegs_->Execute_Wheel_Control();
+        params.Wheel_RPM = wheel_rpms[2];
+        BL_WheelLegs_->Set_Wheel_Leg(params);
     }
     if (BR_WheelLegs_)
     {
-        BR_WheelLegs_->Set_Leg_Height(WHEEL_RADIUS_R - ECCENTRIC_OFFSET_r, 0.0f);
-        BR_WheelLegs_->Execute_Wheel_Control();
+        params.Wheel_RPM = wheel_rpms[3];
+        BR_WheelLegs_->Set_Wheel_Leg(params);
     }
-
-    if (FL_WheelLegs_)
-        FL_WheelLegs_->Execute_Leg_Control();
-    if (FR_WheelLegs_)
-        FR_WheelLegs_->Execute_Leg_Control();
-    if (BL_WheelLegs_)
-        BL_WheelLegs_->Execute_Leg_Control();
-    if (BR_WheelLegs_)
-        BR_WheelLegs_->Execute_Leg_Control();
 }
 
 void Chassis::handleClimbingMode(const Protocol::PC_Msg &cmd)
@@ -580,6 +607,25 @@ void Chassis::inverseKinematics(float vx, float vy, float wz, float *out_wheel_r
     out_wheel_rpms[1] = vx + wz;  // FR
     out_wheel_rpms[2] = vx - wz;  // BL
     out_wheel_rpms[3] = vx + wz;  // BR
+}
+
+float Chassis::CalculateHeightFromAngle(float angle_deg)
+{
+    float R_val = WHEEL_RADIUS_R / 1000.0f;
+    float r_val = ECCENTRIC_OFFSET_r / 1000.0f;
+    return R_val + r_val * cosf(deg2rad(angle_deg));
+}
+
+void Chassis::SetBendingDirection(int fl, int fr, int bl, int br)
+{
+    if (FL_WheelLegs_)
+        FL_WheelLegs_->Set_Bending_Direction(fl);
+    if (FR_WheelLegs_)
+        FR_WheelLegs_->Set_Bending_Direction(fr);
+    if (BL_WheelLegs_)
+        BL_WheelLegs_->Set_Bending_Direction(bl);
+    if (BR_WheelLegs_)
+        BR_WheelLegs_->Set_Bending_Direction(br);
 }
 
 void Chassis::Get_Msg(Protocol::Reachable_Msg *msg)

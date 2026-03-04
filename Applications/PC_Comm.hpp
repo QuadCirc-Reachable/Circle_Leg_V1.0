@@ -5,7 +5,9 @@
 #include "RosComm.hpp"
 #include "task.h"
 
-namespace Applications::Command_Task
+namespace Applications
+{
+namespace Command_Task
 {
 class PC_Comm
 {
@@ -22,14 +24,28 @@ class PC_Comm
      * @param reachable_msg Pointer to the Reachable_Msg to be sent
      */
     void Update_Reachable_Msg(Protocol::Reachable_Msg *reachable_msg);
+
+    /**
+     * @brief Check if PC is connected (message received recently)
+     * @return true if connected, false otherwise
+     */
+    bool Is_Connected();
+
+    /**
+     * @brief Update the last message timestamp
+     */
+    void Update_Timestamp();
+
     /**
      * @brief PC_Comm Task
      */
     static void PC_CommTask(void *pvPara);
 
    private:
-    bool is_connected = false;
-    uint16_t tx_freq  = 100;  // in ms
+    bool is_connected           = false;
+    bool has_received_msg       = false;  // Check if at least one message has been received
+    TickType_t last_msg_time_ms = 0;      // Use TickType_t
+    uint16_t tx_freq            = 100;    // in ms
     Protocol::PC_Msg &pv_pc_msg;
     Protocol::Reachable_Msg &pv_reachable_msg;
 };
@@ -46,9 +62,16 @@ void Get_PC_Msg(Protocol::PC_Msg *pc_msg);
  * @brief Setter for Reachable_Msg
  */
 void Set_Reachable_Msg(Protocol::Reachable_Msg *reachable_msg);
+
+/**
+ * @brief Check connection status
+ */
+bool Is_PC_Connected();
+
 /**
  * @brief Initialize the PC_Comm task
  */
 void init();
 
-}  // namespace Applications::Command_Task
+}  // namespace Command_Task
+}  // namespace Applications

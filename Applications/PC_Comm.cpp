@@ -23,6 +23,51 @@ void PC_RxCallback(uint8_t *data, uint16_t len, UART_HandleTypeDef *handle)
         return;
     }
     memcpy((void *)&g_pc_msg, data, sizeof(Protocol::PC_Msg));
+
+    // Update timestamp
+    pc_comm.Update_Timestamp();
+
+    // If not connected previously, maybe we want to log or anything, but logic is handled via Is_Connected check
+}
+
+void PC_Comm::Update_Timestamp()
+{
+    // Use xTaskGetTickCountFromISR() if inside ISR to avoid assertion failure
+    // Note: If xPortIsInsideInterrupt() is not available, consider using HAL_GetTick() for both.
+    // Assuming standard FreeRTOS port for ARM Cortex-M
+    if (xPortIsInsideInterrupt())
+    {
+        last_msg_time_ms = xTaskGetTickCountFromISR();
+    }
+    else
+    {
+        last_msg_time_ms = xTaskGetTickCount();
+    }
+    is_connected     = true;
+    has_received_msg = true;
+}
+
+bool PC_Comm::Is_Connected()
+{
+    // Check if Last Msg ever received
+    if (!has_received_msg)
+    {
+        is_connected = false;
+        return false;
+    }
+
+    // Check if last message was within 500ms
+    // If no message for > 500ms, consider disconnected
+    TickType_t current_tick = xTaskGetTickCount();
+    if ((current_tick - last_msg_time_ms) > pdMS_TO_TICKS(500))
+    {
+        is_connected = false;
+    }
+    else
+    {
+        is_connected = true;
+    }
+    return is_connected;
 }
 
 // Getter for PC_Msg
@@ -88,6 +133,7 @@ void PC_Comm::PC_CommTask(void *pvPara)
 
 void Get_PC_Msg(Protocol::PC_Msg *pc_msg) { pc_comm.Fetch_PC_Msg(pc_msg); }
 void Set_Reachable_Msg(Protocol::Reachable_Msg *reachable_msg) { pc_comm.Update_Reachable_Msg(reachable_msg); }
+bool Is_PC_Connected() { return pc_comm.Is_Connected(); }
 
 StackType_t uxPC_CommTaskStack[2048];
 StaticTask_t xPC_CommTaskTCB;
