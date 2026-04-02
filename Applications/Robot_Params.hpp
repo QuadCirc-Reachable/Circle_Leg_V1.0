@@ -53,7 +53,7 @@
 
 // Wheel-Leg Geometry
 #define ECCENTRIC_OFFSET_r 65.0f
-#define WHEEL_RADIUS_R 320.0f
+#define WHEEL_RADIUS_R 160.0f
 
 // Chassis Dimensions
 #define WHEEL_TRACK_FRONT 531.0f  // Distance between Front Left and Front Right
@@ -94,9 +94,10 @@
 // ==========================================
 
 // Maximum wheel RPM
-#define MAX_WHEEL_RPM 160.0f
-#define MAX_FORWARD_RPM 80.0f
-#define MAX_TURN_RPM 80.0f
+// Ground speed = RPM * 2π * R / 60.  With R=160mm, these give ~1.3 m/s fwd.
+#define MAX_WHEEL_RPM 80.0f
+#define MAX_FORWARD_RPM 40.0f
+#define MAX_TURN_RPM 40.0f
 
 // Maximum Leg Speed (Degrees per second)
 // Used for Slew Rate Limiter to prevent violent movements

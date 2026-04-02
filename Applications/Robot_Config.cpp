@@ -66,7 +66,6 @@ PID Leg_Vel_PID_BR(LEG_VEL_PID_PARAM);
 PID Leg_Pos_PID_BR(LEG_POS_PID_PARAM);
 #elif USE_HT_LEG_MOTOR
 // MIT Params for HT Motor
-// Reduced KP to reduce stiffness, increased KD for damping
 MIT_Params Leg_MIT_Param_FL = {.Position = 0, .Velocity = 0, .Pos_KP = 35.0f, .Vel_KD = 1.5f, .FFW_Current = 0};
 MIT_Params Leg_MIT_Param_FR = {.Position = 0, .Velocity = 0, .Pos_KP = 35.0f, .Vel_KD = 1.5f, .FFW_Current = 0};
 MIT_Params Leg_MIT_Param_BL = {.Position = 0, .Velocity = 0, .Pos_KP = 35.0f, .Vel_KD = 1.5f, .FFW_Current = 0};

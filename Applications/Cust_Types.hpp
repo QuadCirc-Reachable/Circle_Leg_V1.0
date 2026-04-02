@@ -10,6 +10,7 @@ enum class Chassis_State
     COMFORT,        // Comfort/Active Suspension Mode
     CLIMBING,       // Climbing Mode
     FREE_CONTROL,   // Free Control/Debug Mode
+    DEBUG,          // Debug Mode: X/Y/A/B → leg position, no suspension
     ERROR           // Error State
 };
 

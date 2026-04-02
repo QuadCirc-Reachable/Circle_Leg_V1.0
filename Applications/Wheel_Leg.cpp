@@ -150,6 +150,20 @@ float Wheel_Leg::Get_LegPosition()
     return 0.0f;
 }
 
+float Wheel_Leg::Get_WheelCurrentFeedback()
+{
+    if (wheel_motor)
+        return wheel_motor->getCurrentFeedback();
+    return 0.0f;
+}
+
+float Wheel_Leg::Get_LegCurrentFeedback()
+{
+    if (leg_motor)
+        return leg_motor->getCurrentFeedback();
+    return 0.0f;
+}
+
 float Wheel_Leg::Get_LegTorqueFeedback()
 {
 #if USE_6020_LEG_MOTOR
@@ -344,6 +358,53 @@ void Wheel_Leg::Set_Leg_Height(float h_meters, float v_meters_s)
 #endif
 }
 
+#if USE_HT_LEG_MOTOR
+void Wheel_Leg::Set_Leg_Height(float h_meters, float v_meters_s, float kp, float kd, float ffw_torque)
+{
+    // Same height→angle conversion as the default overload,
+    // but uses caller-provided Kp, Kd, and FFW instead of defaults.
+
+    float R = WHEEL_RADIUS_R / 1000.0f;
+    float r = ECCENTRIC_OFFSET_r / 1000.0f;
+
+    float limit_angle_deg = 10.0f;
+    float limit_cos       = cosf(deg2rad(limit_angle_deg));
+    float max_h           = R + r * limit_cos;
+    float min_h           = R - r * limit_cos;
+
+    if (h_meters > max_h)
+    {
+        h_meters = max_h;
+        if (v_meters_s > 0.0f)
+            v_meters_s = 0.0f;
+    }
+    if (h_meters < min_h)
+    {
+        h_meters = min_h;
+        if (v_meters_s < 0.0f)
+            v_meters_s = 0.0f;
+    }
+
+    float cos_theta = (h_meters - R) / r;
+    if (cos_theta > 1.0f)
+        cos_theta = 1.0f;
+    if (cos_theta < -1.0f)
+        cos_theta = -1.0f;
+
+    float theta_rad = acosf(cos_theta);
+    float theta_deg = rad2deg(theta_rad);
+    float sin_theta = sinf(theta_rad);
+
+    float damping_val      = 0.1f;
+    float target_vel_rad_s = -v_meters_s / (r * (sin_theta + damping_val));
+
+    float target_angle = theta_deg * (float)bending_direction_;
+    target_vel_rad_s *= (float)bending_direction_;
+
+    Set_Leg_Target(target_angle, target_vel_rad_s, ffw_torque, kp, kd);
+}
+#endif
+
 void Wheel_Leg::Add_Leg_Compensation(float comp_pos, float comp_vel, float comp_force)
 {
     leg_compensation_pos += comp_pos;
@@ -439,6 +500,18 @@ void Wheel_Leg::SetZero()
     if (leg_motor)
     {
         leg_motor->setZeroPosition(0.0f);
+    }
+}
+
+void Wheel_Leg::EnterMotorMode()
+{
+    if (leg_motor)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            leg_motor->sendCommand(Motors::HT8115::SpecialCommands::ENTER_MOTOR);
+            vTaskDelay(pdMS_TO_TICKS(2));
+        }
     }
 }
 #endif

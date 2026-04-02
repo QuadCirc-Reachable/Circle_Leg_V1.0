@@ -149,6 +149,18 @@ class Wheel_Leg
     float Get_LegPosition();
 
     /**
+     * @brief Get wheel motor raw current feedback (Amps)
+     * @return Wheel motor current in Amps
+     */
+    float Get_WheelCurrentFeedback();
+
+    /**
+     * @brief Get leg motor raw current feedback (Amps)
+     * @return Motor current in Amps
+     */
+    float Get_LegCurrentFeedback();
+
+    /**
      * @brief Get leg torque feedback from motor
      * @return Leg torque in N-m
      */
@@ -234,9 +246,24 @@ class Wheel_Leg
     void Set_Leg_Height(float h_meters, float v_meters_s = 0.0f);
 
     /**
+     * @brief Set leg height with impedance override (Variable Impedance Control)
+     * @param h_meters    Target height in meters
+     * @param v_meters_s  Target vertical velocity in m/s
+     * @param kp          MIT Kp override (N·m/rad)
+     * @param kd          MIT Kd override (N·m·s/rad)
+     * @param ffw_torque  FFW torque override (Nm) — replaces default gravity comp
+     */
+    void Set_Leg_Height(float h_meters, float v_meters_s, float kp, float kd, float ffw_torque);
+
+    /**
      * @brief Set current position as zero
      */
     void SetZero();
+
+    /**
+     * @brief Re-send ENTER_MOTOR to HT leg motor (idempotent, safe to call repeatedly)
+     */
+    void EnterMotorMode();
 #endif
 
     /**
