@@ -42,15 +42,38 @@ struct DbgClimbing
     uint8_t phase_fr = 0;
     uint8_t phase_bl = 0;
     uint8_t phase_br = 0;
-    // Spike detection debug
-    float spike_fl = 0.0f, spike_fr = 0.0f, spike_bl = 0.0f, spike_br = 0.0f;  // |I - baseline|
-    float base_fl = 0.0f, base_fr = 0.0f, base_bl = 0.0f, base_br = 0.0f;      // LPF baseline
+    // Torque residual step detection debug
+    float tres_fl = 0.0f, tres_fr = 0.0f, tres_bl = 0.0f, tres_br = 0.0f;      // |residual - baseline| (Nm)
+    float tbase_fl = 0.0f, tbase_fr = 0.0f, tbase_bl = 0.0f, tbase_br = 0.0f;  // LPF baseline (Nm)
+    float raw_fl = 0.0f, raw_fr = 0.0f, raw_bl = 0.0f, raw_br = 0.0f;          // raw torque residual (Nm)
+    float target_h = 0.0f;                                                     // Height target being sent to FL (m) — for Ozone debug
+    // Climbing kinematic debug
+    float beta0    = 0.0f;  // β₀ at DETECT→CLIMBING transition (rad)
+    float beta_fl  = 0.0f;  // current β for FL (rad)
+    float beta_fr  = 0.0f;
+    float beta_bl  = 0.0f;
+    float beta_br  = 0.0f;
+    float theta_fl = 0.0f;  // final motor angle cmd (deg, with climb_sign/mirror)
+    float theta_fr = 0.0f;
+    float theta_bl = 0.0f;
+    float theta_br = 0.0f;
+    // Raw unsigned theta from Climbing_Dynamics (deg, 180=highest, 0=lowest)
+    float raw_theta_fl = 0.0f, raw_theta_fr = 0.0f, raw_theta_bl = 0.0f, raw_theta_br = 0.0f;
+    float wheel_rpm = 0.0f;  // climbing forward RPM being commanded
+    // Pitch control during climbing
+    float pitch_setpoint = 0.0f;  // PID target (deg, + = backward lean)
+    float pitch_actual   = 0.0f;  // IMU pitch (deg)
+    float pitch_h_adj    = 0.0f;  // PID output (m, height correction)
 };
 
 struct DbgControl
 {
-    int state_cmd        = -1;
-    float step_height_mm = 10.0f;
+    int state_cmd              = -1;
+    float step_height_mm       = 100.0f;
+    float torque_res_threshold = 3.2f;  // Ozone-tunable: step detection threshold (Nm)
+    float climb_omega          = 1.0f;  // Ozone-tunable: climbing trajectory speed (rad/s)
+    float climb_wheel_scale    = 5.0f;  // Ozone-tunable: wheel RPM multiplier vs theoretical (>1 = faster)
+    float climb_pitch_bias     = 3.0f;  // Ozone-tunable: forward pitch lean during front climbing (deg)
 };
 
 // 接地补偿 (warp mode)
@@ -75,12 +98,53 @@ struct DbgImpedance
     float vz         = 0.0f;
 };
 
+// Torque residual monitor — updated in ALL modes at end of Update()
+// Use this in Ozone to observe step-contact torque spikes in any mode.
+struct DbgTorque
+{
+    // Raw torque feedback (Nm)
+    float torque_fl = 0.0f, torque_fr = 0.0f, torque_bl = 0.0f, torque_br = 0.0f;
+    // Gravity compensation torque (Nm)
+    float grav_fl = 0.0f, grav_fr = 0.0f, grav_bl = 0.0f, grav_br = 0.0f;
+    // Torque residual (Nm) = torque - gravity  (spikes on step contact)
+    float res_fl = 0.0f, res_fr = 0.0f, res_bl = 0.0f, res_br = 0.0f;
+    // LPF baseline of residual (Nm) — slow-moving average
+    float base_fl = 0.0f, base_fr = 0.0f, base_bl = 0.0f, base_br = 0.0f;
+    // Deviation = |residual - baseline| (Nm) — this is the step-detection signal
+    float dev_fl = 0.0f, dev_fr = 0.0f, dev_bl = 0.0f, dev_br = 0.0f;
+};
+
+// Leg angle monitor — updated in ALL modes at end of Update()
+struct DbgLeg
+{
+    float cmd_fl = 0.0f, cmd_fr = 0.0f, cmd_bl = 0.0f, cmd_br = 0.0f;  // Final motor command (deg, post-slew)
+    float fb_fl = 0.0f, fb_fr = 0.0f, fb_bl = 0.0f, fb_br = 0.0f;      // Motor feedback (deg)
+};
+
+// Wheel motor health monitor — updated in ALL modes
+struct DbgWheel
+{
+    float out_fl = 0.0f, out_fr = 0.0f, out_bl = 0.0f, out_br = 0.0f;      // Motor output command
+    float cur_fl = 0.0f, cur_fr = 0.0f, cur_bl = 0.0f, cur_br = 0.0f;      // Current feedback (A)
+    float rpm_fl = 0.0f, rpm_fr = 0.0f, rpm_bl = 0.0f, rpm_br = 0.0f;      // RPM feedback
+    float temp_fl = 0.0f, temp_fr = 0.0f, temp_bl = 0.0f, temp_br = 0.0f;  // Temperature (°C)
+    // Torque utilization: |output| / 16000 (0~1, 1=saturated)
+    float util_fl = 0.0f, util_fr = 0.0f, util_bl = 0.0f, util_br = 0.0f;
+    // Target RPM (final, after compensation)
+    float tgt_fl = 0.0f, tgt_fr = 0.0f, tgt_bl = 0.0f, tgt_br = 0.0f;
+    // RPM error = target - actual (positive = stalling, negative = spinning free/slipping)
+    float err_fl = 0.0f, err_fr = 0.0f, err_bl = 0.0f, err_br = 0.0f;
+};
+
 extern DbgIMU dbg_imu;
 extern DbgLeveling dbg_leveling;
 extern DbgClimbing dbg_climb;
 extern DbgControl dbg_ctrl;
 extern DbgGroundContact dbg_gc;
 extern DbgImpedance dbg_imp;
+extern DbgTorque dbg_torque;
+extern DbgLeg dbg_leg;
+extern DbgWheel dbg_wheel;
 
 // =========================================================================
 
@@ -208,6 +272,7 @@ class Chassis
     // Impedance variant: uses per-leg Kp/Kd/FFW from Impedance_Controller
     void executeBodyControlImpedance(const Protocol::PC_Msg &cmd);
     void executeMotorCommands();
+    void updateWheelDebug();
     float clampHeight(float h) const { return h < h_min_ ? h_min_ : (h > h_max_ ? h_max_ : h); }
 
     // 运动学解算：将底盘整体速度(Vx, Vy, Wz)分解为4个轮子的速度

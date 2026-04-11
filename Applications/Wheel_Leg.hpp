@@ -155,6 +155,26 @@ class Wheel_Leg
     float Get_WheelCurrentFeedback();
 
     /**
+     * @brief Get wheel motor temperature (°C)
+     */
+    float Get_WheelTemperature();
+
+    /**
+     * @brief Get wheel motor output command (raw CAN value)
+     */
+    float Get_WheelOutput();
+
+    /**
+     * @brief Get final wheel RPM target (after compensation)
+     */
+    float Get_FinalWheelRPM() const { return final_wheel_rpm; }
+
+    /**
+     * @brief Get final leg command angle (deg) after slew rate limiter
+     */
+    float Get_FinalLegCommand() const { return final_leg_pos; }
+
+    /**
      * @brief Get leg motor raw current feedback (Amps)
      * @return Motor current in Amps
      */

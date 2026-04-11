@@ -44,6 +44,9 @@ DbgClimbing dbg_climb;
 DbgControl dbg_ctrl;
 DbgGroundContact dbg_gc;
 DbgImpedance dbg_imp;
+DbgTorque dbg_torque;
+DbgLeg dbg_leg;
+DbgWheel dbg_wheel;
 
 Chassis::Chassis(Wheel_Leg *fl, Wheel_Leg *fr, Wheel_Leg *bl, Wheel_Leg *br)
     : FL_WheelLegs_(fl),
@@ -106,10 +109,13 @@ void Chassis::Set_Mode(Chassis_State new_state)
     {
         climbing_.reset();
         climbing_.startClimbAll();
-        // Don't jump to h_max_ — ramp height smoothly in handleClimbingMode PREP phase
-        // target_chassis_height_ stays at current value
-        // Keep current bending direction from COMFORT — switching direction mid-transition
-        // causes the slew-rate limiter to route through θ=180° (h_min), dropping the robot.
+        // Match body height to the PREP motor angle so BL/BR (IDLE) don't
+        // create a pitch difference with FL/FR (PREP).
+        // PREP motor angle = 180° - prep_theta_deg.  Height at that angle
+        // via H = R + r·cos(angle) gives the matching height.
+        // This also leaves a safe low height when returning to COMFORT,
+        // avoiding the θ≈0° singularity (near full extension).
+        target_chassis_height_ = CalculateHeightFromAngle(180.0f - climbing_.config().prep_theta_deg);
     }
 }
 
@@ -229,6 +235,45 @@ void Chassis::Update(const Protocol::PC_Msg &cmd)
     default:
         break;
     }
+
+    // --- Torque residual tracking (ALL modes) ---
+    // LPF alpha for baseline (~1.6 Hz @ 500 Hz, same as Climbing_Dynamics)
+    constexpr float torque_base_alpha = 0.02f;
+
+    float t_fb[4]   = {FL_WheelLegs_ ? FL_WheelLegs_->Get_LegTorqueFeedback() : 0.0f,
+                       FR_WheelLegs_ ? FR_WheelLegs_->Get_LegTorqueFeedback() : 0.0f,
+                       BL_WheelLegs_ ? BL_WheelLegs_->Get_LegTorqueFeedback() : 0.0f,
+                       BR_WheelLegs_ ? BR_WheelLegs_->Get_LegTorqueFeedback() : 0.0f};
+    float g_comp[4] = {FL_WheelLegs_ ? FL_WheelLegs_->Get_LegGravityTorque() : 0.0f,
+                       FR_WheelLegs_ ? FR_WheelLegs_->Get_LegGravityTorque() : 0.0f,
+                       BL_WheelLegs_ ? BL_WheelLegs_->Get_LegGravityTorque() : 0.0f,
+                       BR_WheelLegs_ ? BR_WheelLegs_->Get_LegGravityTorque() : 0.0f};
+
+    float *torque_arr[] = {&dbg_torque.torque_fl, &dbg_torque.torque_fr, &dbg_torque.torque_bl, &dbg_torque.torque_br};
+    float *grav_arr[]   = {&dbg_torque.grav_fl, &dbg_torque.grav_fr, &dbg_torque.grav_bl, &dbg_torque.grav_br};
+    float *res_arr[]    = {&dbg_torque.res_fl, &dbg_torque.res_fr, &dbg_torque.res_bl, &dbg_torque.res_br};
+    float *base_arr[]   = {&dbg_torque.base_fl, &dbg_torque.base_fr, &dbg_torque.base_bl, &dbg_torque.base_br};
+    float *dev_arr[]    = {&dbg_torque.dev_fl, &dbg_torque.dev_fr, &dbg_torque.dev_bl, &dbg_torque.dev_br};
+
+    for (int i = 0; i < 4; i++)
+    {
+        *torque_arr[i] = t_fb[i];
+        *grav_arr[i]   = g_comp[i];
+        float res      = t_fb[i] - g_comp[i];
+        *res_arr[i]    = res;
+        *base_arr[i]   = torque_base_alpha * res + (1.0f - torque_base_alpha) * (*base_arr[i]);
+        *dev_arr[i]    = fabsf(res - *base_arr[i]);
+    }
+
+    // --- Leg angle tracking (ALL modes) ---
+    dbg_leg.fb_fl  = FL_WheelLegs_ ? FL_WheelLegs_->Get_LegPosition() : 0.0f;
+    dbg_leg.fb_fr  = FR_WheelLegs_ ? FR_WheelLegs_->Get_LegPosition() : 0.0f;
+    dbg_leg.fb_bl  = BL_WheelLegs_ ? BL_WheelLegs_->Get_LegPosition() : 0.0f;
+    dbg_leg.fb_br  = BR_WheelLegs_ ? BR_WheelLegs_->Get_LegPosition() : 0.0f;
+    dbg_leg.cmd_fl = FL_WheelLegs_ ? FL_WheelLegs_->Get_FinalLegCommand() : 0.0f;
+    dbg_leg.cmd_fr = FR_WheelLegs_ ? FR_WheelLegs_->Get_FinalLegCommand() : 0.0f;
+    dbg_leg.cmd_bl = BL_WheelLegs_ ? BL_WheelLegs_->Get_FinalLegCommand() : 0.0f;
+    dbg_leg.cmd_br = BR_WheelLegs_ ? BR_WheelLegs_->Get_FinalLegCommand() : 0.0f;
 }
 
 void Chassis::handleCalibrationMode()
@@ -604,6 +649,9 @@ void Chassis::handleFreeControl(const Protocol::PC_Msg &cmd)
         params.Wheel_RPM = wheel_rpms[3];
         BR_WheelLegs_->Set_Wheel_Leg(params);
     }
+
+    // Wheel motor health (FREE_CONTROL uses Set_Wheel_Leg, not executeMotorCommands)
+    updateWheelDebug();
 }
 
 // =====================================================================
@@ -716,6 +764,9 @@ void Chassis::handleEnergySaving(const Protocol::PC_Msg &cmd)
         params.Wheel_RPM = wheel_rpms[3];
         BR_WheelLegs_->Set_Wheel_Leg(params);
     }
+
+    // Wheel motor health (ENERGY_SAVING uses Set_Wheel_Leg, not executeMotorCommands)
+    updateWheelDebug();
 }
 
 // =====================================================================
@@ -724,7 +775,19 @@ void Chassis::handleEnergySaving(const Protocol::PC_Msg &cmd)
 void Chassis::handleClimbingMode(const Protocol::PC_Msg &cmd)
 {
     readAndTransformIMU();
-    // NOTE: No handleHeightButtons() here — CLIMBING manages its own height ramp
+
+    // --- Trigger-based DIRECT ANGLE debug (verify climbing direction) ---
+    // L trigger → FL/FR sweep from -(180-deadzone) toward 0° (climbing direction)
+    // R trigger → BL/BR sweep from +(180-deadzone) toward 0° (climbing direction)
+    // Released = PREP position (±165°),  Fully pressed = 0° (extended)
+    float l_ratio_c    = (float)cmd.Left_trigger_x1000_msg / 1000.0f;
+    float r_ratio_c    = (float)cmd.Right_trigger_x1000_msg / 1000.0f;
+    bool manual_climb  = (l_ratio_c > 0.05f || r_ratio_c > 0.05f);
+    float deadzone_deg = climbing_.config().prep_theta_deg;
+    float prep_angle   = 180.0f - deadzone_deg;  // e.g. 165°
+    // Sweep: ratio=0 → ±prep_angle,  ratio=1 → 0°
+    float front_angle = -prep_angle * (1.0f - l_ratio_c);  // FL/FR: negative, toward 0
+    float back_angle  = +prep_angle * (1.0f - r_ratio_c);  // BL/BR: positive, toward 0
 
     // --- Smooth Kp/Kd ramp when transitioning from COMFORT ---
     float climb_target_kp = 12.0f;
@@ -747,30 +810,24 @@ void Chassis::handleClimbingMode(const Protocol::PC_Msg &cmd)
 
     // Gather per-leg feedback
     LegClimbFeedback fb[4] = {};
+    // Compute torque residual per leg: actual_torque - gravity_comp
+    float tres[4] = {FL_WheelLegs_ ? (FL_WheelLegs_->Get_LegTorqueFeedback() - FL_WheelLegs_->Get_LegGravityTorque()) : 0.0f,
+                     FR_WheelLegs_ ? (FR_WheelLegs_->Get_LegTorqueFeedback() - FR_WheelLegs_->Get_LegGravityTorque()) : 0.0f,
+                     BL_WheelLegs_ ? (BL_WheelLegs_->Get_LegTorqueFeedback() - BL_WheelLegs_->Get_LegGravityTorque()) : 0.0f,
+                     BR_WheelLegs_ ? (BR_WheelLegs_->Get_LegTorqueFeedback() - BR_WheelLegs_->Get_LegGravityTorque()) : 0.0f};
     if (FL_WheelLegs_)
-        fb[0] = {FL_WheelLegs_->Get_LegPosition(), FL_WheelLegs_->Get_WheelRPM(), FL_WheelLegs_->Get_WheelCurrentFeedback()};
+        fb[0] = {FL_WheelLegs_->Get_LegPosition(), FL_WheelLegs_->Get_WheelRPM(), tres[0]};
     if (FR_WheelLegs_)
-        fb[1] = {FR_WheelLegs_->Get_LegPosition(), FR_WheelLegs_->Get_WheelRPM(), FR_WheelLegs_->Get_WheelCurrentFeedback()};
+        fb[1] = {FR_WheelLegs_->Get_LegPosition(), FR_WheelLegs_->Get_WheelRPM(), tres[1]};
     if (BL_WheelLegs_)
-        fb[2] = {BL_WheelLegs_->Get_LegPosition(), BL_WheelLegs_->Get_WheelRPM(), BL_WheelLegs_->Get_WheelCurrentFeedback()};
+        fb[2] = {BL_WheelLegs_->Get_LegPosition(), BL_WheelLegs_->Get_WheelRPM(), tres[2]};
     if (BR_WheelLegs_)
-        fb[3] = {BR_WheelLegs_->Get_LegPosition(), BR_WheelLegs_->Get_WheelRPM(), BR_WheelLegs_->Get_WheelCurrentFeedback()};
+        fb[3] = {BR_WheelLegs_->Get_LegPosition(), BR_WheelLegs_->Get_WheelRPM(), tres[3]};
 
-    climbing_.config().step_height_m = dbg_ctrl.step_height_mm / 1000.0f;
-    const float dt                   = 0.002f;
-
-    // --- PREP phase: smoothly ramp height toward h_max_ ---
-    // Rate: 0.3 m/s → full travel (0.11m) in ~0.37s
-    bool any_prep = false;
-    for (int i = 0; i < 4; i++)
-        if (climbing_.getPhase(i) == LegClimbPhase::PREP)
-            any_prep = true;
-    if (any_prep && target_chassis_height_ < h_max_)
-    {
-        target_chassis_height_ += 0.3f * dt;  // 0.0006 m/frame
-        if (target_chassis_height_ > h_max_)
-            target_chassis_height_ = h_max_;
-    }
+    climbing_.config().step_height_m        = dbg_ctrl.step_height_mm / 1000.0f;
+    climbing_.config().torque_res_threshold = dbg_ctrl.torque_res_threshold;
+    climbing_.config().climb_omega          = dbg_ctrl.climb_omega;
+    const float dt                          = 0.002f;
 
     climbing_.update(fb, dt);
 
@@ -797,23 +854,42 @@ void Chassis::handleClimbingMode(const Protocol::PC_Msg &cmd)
     dbg_climb.phase_fr = static_cast<uint8_t>(climbing_.getPhase(1));
     dbg_climb.phase_bl = static_cast<uint8_t>(climbing_.getPhase(2));
     dbg_climb.phase_br = static_cast<uint8_t>(climbing_.getPhase(3));
-    // Spike detection debug: |I_wheel - baseline| and baseline per leg
-    float wc[4]        = {FL_WheelLegs_ ? FL_WheelLegs_->Get_WheelCurrentFeedback() : 0.0f,
-                          FR_WheelLegs_ ? FR_WheelLegs_->Get_WheelCurrentFeedback() : 0.0f,
-                          BL_WheelLegs_ ? BL_WheelLegs_->Get_WheelCurrentFeedback() : 0.0f,
-                          BR_WheelLegs_ ? BR_WheelLegs_->Get_WheelCurrentFeedback() : 0.0f};
-    dbg_climb.base_fl  = climbing_.getBaseline(0);
-    dbg_climb.base_fr  = climbing_.getBaseline(1);
-    dbg_climb.base_bl  = climbing_.getBaseline(2);
-    dbg_climb.base_br  = climbing_.getBaseline(3);
-    dbg_climb.spike_fl = fabsf(wc[0] - dbg_climb.base_fl);
-    dbg_climb.spike_fr = fabsf(wc[1] - dbg_climb.base_fr);
-    dbg_climb.spike_bl = fabsf(wc[2] - dbg_climb.base_bl);
-    dbg_climb.spike_br = fabsf(wc[3] - dbg_climb.base_br);
+    // Torque residual step detection debug
+    dbg_climb.tbase_fl = climbing_.getBaseline(0);
+    dbg_climb.tbase_fr = climbing_.getBaseline(1);
+    dbg_climb.tbase_bl = climbing_.getBaseline(2);
+    dbg_climb.tbase_br = climbing_.getBaseline(3);
+    dbg_climb.raw_fl   = tres[0];
+    dbg_climb.raw_fr   = tres[1];
+    dbg_climb.raw_bl   = tres[2];
+    dbg_climb.raw_br   = tres[3];
+    dbg_climb.tres_fl  = fabsf(tres[0] - dbg_climb.tbase_fl);
+    dbg_climb.tres_fr  = fabsf(tres[1] - dbg_climb.tbase_fr);
+    dbg_climb.tres_bl  = fabsf(tres[2] - dbg_climb.tbase_bl);
+    dbg_climb.tres_br  = fabsf(tres[3] - dbg_climb.tbase_br);
+    // Target height sent to FL (m) — check in Ozone to diagnose height issues
+    dbg_climb.target_h = climbing_.isDirectControl(0) ? climbing_.getTargetHeight(0) : target_chassis_height_;
+
+    // Pitch lean bias during climbing — gravitational "push" toward climbing wheels
+    // Active during PREP/DETECT/CLIMBING (not just CLIMBING) so weight shifts early.
+    float pitch_setpoint = 0.0f;
+    auto phFL = climbing_.getPhase(0), phFR = climbing_.getPhase(1);
+    auto phBL = climbing_.getPhase(2), phBR = climbing_.getPhase(3);
+    bool front_active = (phFL == LegClimbPhase::PREP || phFL == LegClimbPhase::DETECT || phFL == LegClimbPhase::CLIMBING ||
+                         phFR == LegClimbPhase::PREP || phFR == LegClimbPhase::DETECT || phFR == LegClimbPhase::CLIMBING);
+    bool back_active  = (phBL == LegClimbPhase::PREP || phBL == LegClimbPhase::DETECT || phBL == LegClimbPhase::CLIMBING ||
+                         phBR == LegClimbPhase::PREP || phBR == LegClimbPhase::DETECT || phBR == LegClimbPhase::CLIMBING);
+    // Keep separate flags for pitch suppression (only suppress during actual CLIMBING)
+    bool front_climbing = (phFL == LegClimbPhase::CLIMBING || phFR == LegClimbPhase::CLIMBING);
+    bool back_climbing  = (phBL == LegClimbPhase::CLIMBING || phBR == LegClimbPhase::CLIMBING);
+    if (front_active)
+        pitch_setpoint = -dbg_ctrl.climb_pitch_bias;  // lean forward to load front wheels
+    else if (back_active)
+        pitch_setpoint = dbg_ctrl.climb_pitch_bias;  // lean backward to load back wheels
 
     // Body Leveling PID
     float roll_h_adj  = roll_pid(0.0f, clampSym(chassis_roll_, max_roll_deg_));
-    float pitch_h_adj = pitch_pid(0.0f, clampSym(chassis_pitch_, max_pitch_deg_));
+    float pitch_h_adj = pitch_pid(pitch_setpoint, clampSym(chassis_pitch_, max_pitch_deg_));
 
     // Gyro Feedforward (disabled — set ff_gain_c > 0 to re-enable after tuning)
     static float filt_pitch_rate_c = 0.0f, filt_roll_rate_c = 0.0f;
@@ -828,51 +904,164 @@ void Chassis::handleClimbingMode(const Protocol::PC_Msg &cmd)
     // get amplified into large angle changes. Scale down PID leveling to prevent oscillation.
     constexpr float lev_scale = 0.25f;
 
-    // FL (Front-Left): +Pitch, -Roll
-    if (FL_WheelLegs_)
+    // Per-leg height: trigger angle debug OR climbing state machine
+    float h_targets[4], v_targets[4];
+    float lev_signs[4][2]   = {{1, -1}, {1, 1}, {-1, -1}, {-1, 1}};  // {pitch_sign, roll_sign}
+    float gv_signs[4][2]    = {{1, -1}, {1, 1}, {-1, -1}, {-1, 1}};  // same for gyro FF
+    float trigger_angles[4] = {front_angle, front_angle, back_angle, back_angle};
+
+    // Climbing angle sign: FL/FR negative, BL/BR positive.
+    // BL/BR use a mirrored trajectory so angle increases during climbing (see below).
+    float climb_sign[4] = {-1.0f, -1.0f, 1.0f, 1.0f};
+
+    for (int i = 0; i < 4; i++)
     {
-        float lev = lev_scale * (pitch_h_adj - roll_h_adj) + ground_contact_.getDeltaH(0);
-        float gv  = v_pitch_ff - v_roll_ff;
-        float h   = climbing_.isDirectControl(0) ? climbing_.getTargetHeight(0) + lev : target_chassis_height_ + lev;
-        float v   = climbing_.isDirectControl(0) ? climbing_.getTargetVelocity(0) + gv : gv;
-        FL_WheelLegs_->Set_Leg_Height(clampHeight(h), v, kp_use, kd_use, FL_WheelLegs_->Get_LegGravityTorque());
-    }
-    // FR (Front-Right): +Pitch, +Roll
-    if (FR_WheelLegs_)
-    {
-        float lev = lev_scale * (pitch_h_adj + roll_h_adj) + ground_contact_.getDeltaH(1);
-        float gv  = v_pitch_ff + v_roll_ff;
-        float h   = climbing_.isDirectControl(1) ? climbing_.getTargetHeight(1) + lev : target_chassis_height_ + lev;
-        float v   = climbing_.isDirectControl(1) ? climbing_.getTargetVelocity(1) + gv : gv;
-        FR_WheelLegs_->Set_Leg_Height(clampHeight(h), v, kp_use, kd_use, FR_WheelLegs_->Get_LegGravityTorque());
-    }
-    // BL (Back-Left): -Pitch, -Roll
-    if (BL_WheelLegs_)
-    {
-        float lev = lev_scale * (-pitch_h_adj - roll_h_adj) + ground_contact_.getDeltaH(2);
-        float gv  = -v_pitch_ff - v_roll_ff;
-        float h   = climbing_.isDirectControl(2) ? climbing_.getTargetHeight(2) + lev : target_chassis_height_ + lev;
-        float v   = climbing_.isDirectControl(2) ? climbing_.getTargetVelocity(2) + gv : gv;
-        BL_WheelLegs_->Set_Leg_Height(clampHeight(h), v, kp_use, kd_use, BL_WheelLegs_->Get_LegGravityTorque());
-    }
-    // BR (Back-Right): -Pitch, +Roll
-    if (BR_WheelLegs_)
-    {
-        float lev = lev_scale * (-pitch_h_adj + roll_h_adj) + ground_contact_.getDeltaH(3);
-        float gv  = -v_pitch_ff + v_roll_ff;
-        float h   = climbing_.isDirectControl(3) ? climbing_.getTargetHeight(3) + lev : target_chassis_height_ + lev;
-        float v   = climbing_.isDirectControl(3) ? climbing_.getTargetVelocity(3) + gv : gv;
-        BR_WheelLegs_->Set_Leg_Height(clampHeight(h), v, kp_use, kd_use, BR_WheelLegs_->Get_LegGravityTorque());
+        // During climbing: keep pitch leveling on support legs (for pitch bias lean)
+        // but disable warp compensation (designed for flat ground, misleading on step).
+        float pitch_contrib = lev_signs[i][0] * pitch_h_adj;
+        float warp_dh       = ground_contact_.getDeltaH(i);
+        if (front_climbing && i >= 2)
+            warp_dh = 0.0f;
+        if (back_climbing && i < 2)
+            warp_dh = 0.0f;
+
+        float lev = lev_scale * (pitch_contrib + lev_signs[i][1] * roll_h_adj) + warp_dh;
+        float gv  = gv_signs[i][0] * v_pitch_ff + gv_signs[i][1] * v_roll_ff;
+
+        if (manual_climb)
+        {
+            // Trigger debug: direct angle control, bypass state machine
+            // h_targets/v_targets unused — angle sent directly below
+            h_targets[i] = 0.0f;
+            v_targets[i] = 0.0f;
+        }
+        else if (climbing_.isDirectControl(i))
+        {
+            // Climbing direct control: use kinematic height directly, NO body leveling.
+            // The 180°-acos() angle mapping creates a non-monotonic relationship
+            // between height corrections and unwrapped motor angle, causing positive
+            // feedback with the roll/pitch PID for legs with negative climb_sign.
+            h_targets[i] = climbing_.getTargetHeight(i);
+            v_targets[i] = climbing_.getTargetVelocity(i);
+        }
+        else
+        {
+            // Non-climbing legs: normal height pipeline with leveling
+            h_targets[i] = target_chassis_height_ + lev;
+            v_targets[i] = gv;
+        }
     }
 
-    dbg_leveling.h_fl = FL_WheelLegs_ ? (climbing_.isDirectControl(0) ? climbing_.getTargetHeight(0) : target_chassis_height_) : 0.0f;
-    dbg_leveling.h_fr = FR_WheelLegs_ ? (climbing_.isDirectControl(1) ? climbing_.getTargetHeight(1) : target_chassis_height_) : 0.0f;
-    dbg_leveling.h_bl = BL_WheelLegs_ ? (climbing_.isDirectControl(2) ? climbing_.getTargetHeight(2) : target_chassis_height_) : 0.0f;
-    dbg_leveling.h_br = BR_WheelLegs_ ? (climbing_.isDirectControl(3) ? climbing_.getTargetHeight(3) : target_chassis_height_) : 0.0f;
+    // Constants for height→angle conversion (same as Set_Leg_Height)
+    const float R_m = WHEEL_RADIUS_R / 1000.0f;
+    const float r_m = ECCENTRIC_OFFSET_r / 1000.0f;
+
+    Wheel_Leg *legs[4]     = {FL_WheelLegs_, FR_WheelLegs_, BL_WheelLegs_, BR_WheelLegs_};
+    float dbg_angle_cmd[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    for (int i = 0; i < 4; i++)
+    {
+        if (!legs[i])
+            continue;
+
+        if (manual_climb)
+        {
+            // --- Trigger debug: direct angle command, verify climbing direction ---
+            float ffw = legs[i]->Get_LegGravityTorque();
+            legs[i]->Set_Leg_Target(trigger_angles[i], 0.0f, ffw, kp_use, kd_use);
+            dbg_angle_cmd[i] = trigger_angles[i];
+        }
+        else if (climbing_.isDirectControl(i))
+        {
+            // --- Direct angle control for climbing phases ---
+            // Climbing_Dynamics outputs unsigned motor angle (180°=highest, 0°=lowest)
+            // and angular velocity. theta_unsigned DECREASES during climbing (165→57.4).
+            //
+            // FL/FR (i<2): angle = -theta_unsigned → -165 → -57.4 (toward 0) ✓
+            // BL/BR (i≥2): angle = +theta_unsigned → +165 → +57.4 (toward 0) ✓
+            //   Both front and back are mirrors, converging toward 0°.
+            float theta_unsigned = climbing_.getTargetThetaDeg(i);
+            float omega_unsigned = climbing_.getTargetOmega(i);  // negative (theta decreasing)
+
+            // climb_sign: FL/FR = -1, BL/BR = +1
+            float angle_cmd = climb_sign[i] * theta_unsigned;
+            float vel_cmd   = climb_sign[i] * omega_unsigned;
+
+            // Pitch leveling for direct-control legs (PREP/DETECT/CLIMBING/COMPLETE).
+            // The height pipeline can't reach them, so convert PID output (meters)
+            // → angle offset (degrees) using H = R + r·cos(θ), dθ = -dH/(r·sin(θ)).
+            {
+                float dh      = lev_signs[i][0] * pitch_h_adj;  // full PID output
+                float thu_rad = theta_unsigned * 3.14159265f / 180.0f;
+                float sin_thu = sinf(thu_rad);
+                if (fabsf(sin_thu) < 0.15f)
+                    sin_thu = copysignf(0.15f, sin_thu);
+                float dtheta_deg = -dh / (r_m * sin_thu) * (180.0f / 3.14159265f);
+                // Clamp offset and final angle to safe range
+                if (dtheta_deg > 50.0f)
+                    dtheta_deg = 50.0f;
+                if (dtheta_deg < -50.0f)
+                    dtheta_deg = -50.0f;
+                float new_theta = theta_unsigned + dtheta_deg;
+                if (new_theta > 180.0f)
+                    new_theta = 180.0f;
+                if (new_theta < 0.0f)
+                    new_theta = 0.0f;
+                angle_cmd = climb_sign[i] * new_theta;
+            }
+
+            float ffw = legs[i]->Get_LegGravityTorque();
+            legs[i]->Set_Leg_Target(angle_cmd, vel_cmd, ffw, kp_use, kd_use);
+            dbg_angle_cmd[i] = angle_cmd;
+        }
+        else
+        {
+            // Normal height pipeline (COMFORT-like, or manual trigger)
+            legs[i]->Set_Leg_Height(clampHeight(h_targets[i]), v_targets[i], kp_use, kd_use, legs[i]->Get_LegGravityTorque());
+            // Show actual motor feedback for non-climbing legs (so BL/BR don't show 0)
+            dbg_angle_cmd[i] = legs[i]->Get_LegPosition();
+        }
+    }
+
+    dbg_leveling.h_fl = manual_climb ? 0.0f : (climbing_.isDirectControl(0) ? climbing_.getTargetHeight(0) : target_chassis_height_);
+    dbg_leveling.h_fr = manual_climb ? 0.0f : (climbing_.isDirectControl(1) ? climbing_.getTargetHeight(1) : target_chassis_height_);
+    dbg_leveling.h_bl = manual_climb ? 0.0f : (climbing_.isDirectControl(2) ? climbing_.getTargetHeight(2) : target_chassis_height_);
+    dbg_leveling.h_br = manual_climb ? 0.0f : (climbing_.isDirectControl(3) ? climbing_.getTargetHeight(3) : target_chassis_height_);
+
+    // Climbing kinematic debug: β₀, per-leg β, and commanded motor angle
+    dbg_climb.beta0        = climbing_.getBeta0() * 180.0f / 3.14159265f;
+    dbg_climb.beta_fl      = climbing_.getBeta(0) * 180.0f / 3.14159265f;
+    dbg_climb.beta_fr      = climbing_.getBeta(1) * 180.0f / 3.14159265f;
+    dbg_climb.beta_bl      = climbing_.getBeta(2) * 180.0f / 3.14159265f;
+    dbg_climb.beta_br      = climbing_.getBeta(3) * 180.0f / 3.14159265f;
+    dbg_climb.theta_fl     = dbg_angle_cmd[0];
+    dbg_climb.theta_fr     = dbg_angle_cmd[1];
+    dbg_climb.theta_bl     = dbg_angle_cmd[2];
+    dbg_climb.theta_br     = dbg_angle_cmd[3];
+    dbg_climb.raw_theta_fl = climbing_.getTargetThetaDeg(0) * climb_sign[0];
+    dbg_climb.raw_theta_fr = climbing_.getTargetThetaDeg(1) * climb_sign[1];
+    dbg_climb.raw_theta_bl = climbing_.getTargetThetaDeg(2) * climb_sign[2];
+    dbg_climb.raw_theta_br = climbing_.getTargetThetaDeg(3) * climb_sign[3];
 
     // Wheel velocity + execute
+    // Add forward RPM throughout entire climbing sequence (including all COMPLETE).
+    // Only stops when user switches out of CLIMBING mode.
+    float climb_base_rpm = 0.0f;
+    for (int i = 0; i < 4; i++)
+    {
+        LegClimbPhase ph = climbing_.getPhase(i);
+        if (ph == LegClimbPhase::CLIMBING || ph == LegClimbPhase::COMPLETE)
+        {
+            climb_base_rpm = climbing_.config().climb_omega * (60.0f / (2.0f * 3.14159265f)) * dbg_ctrl.climb_wheel_scale;
+            break;
+        }
+    }
+    dbg_climb.wheel_rpm = climb_base_rpm;
+
     float wheel_rpms[4], vx = 0.0f, wz = 0.0f;
     controller_.Map_Joystick_To_Velocity(cmd, vx, wz);
+    // Only add climb boost when user is pushing forward (vx > 0)
+    if (vx > 0.5f)
+        vx += climb_base_rpm;
     inverseKinematics(vx, 0, wz, wheel_rpms);
 
     if (FL_WheelLegs_)
@@ -920,6 +1109,52 @@ void Chassis::executeMotorCommands()
     {
         BR_WheelLegs_->Execute_Wheel_Control();
         BR_WheelLegs_->Execute_Leg_Control();
+    }
+
+    updateWheelDebug();
+}
+
+void Chassis::updateWheelDebug()
+{
+    if (FL_WheelLegs_)
+    {
+        dbg_wheel.out_fl  = FL_WheelLegs_->Get_WheelOutput();
+        dbg_wheel.cur_fl  = FL_WheelLegs_->Get_WheelCurrentFeedback();
+        dbg_wheel.rpm_fl  = FL_WheelLegs_->Get_WheelRPM();
+        dbg_wheel.temp_fl = FL_WheelLegs_->Get_WheelTemperature();
+        dbg_wheel.tgt_fl  = FL_WheelLegs_->Get_FinalWheelRPM();
+        dbg_wheel.util_fl = fabsf(dbg_wheel.out_fl) / 16000.0f;
+        dbg_wheel.err_fl  = dbg_wheel.tgt_fl - dbg_wheel.rpm_fl;
+    }
+    if (FR_WheelLegs_)
+    {
+        dbg_wheel.out_fr  = FR_WheelLegs_->Get_WheelOutput();
+        dbg_wheel.cur_fr  = FR_WheelLegs_->Get_WheelCurrentFeedback();
+        dbg_wheel.rpm_fr  = FR_WheelLegs_->Get_WheelRPM();
+        dbg_wheel.temp_fr = FR_WheelLegs_->Get_WheelTemperature();
+        dbg_wheel.tgt_fr  = FR_WheelLegs_->Get_FinalWheelRPM();
+        dbg_wheel.util_fr = fabsf(dbg_wheel.out_fr) / 16000.0f;
+        dbg_wheel.err_fr  = dbg_wheel.tgt_fr - dbg_wheel.rpm_fr;
+    }
+    if (BL_WheelLegs_)
+    {
+        dbg_wheel.out_bl  = BL_WheelLegs_->Get_WheelOutput();
+        dbg_wheel.cur_bl  = BL_WheelLegs_->Get_WheelCurrentFeedback();
+        dbg_wheel.rpm_bl  = BL_WheelLegs_->Get_WheelRPM();
+        dbg_wheel.temp_bl = BL_WheelLegs_->Get_WheelTemperature();
+        dbg_wheel.tgt_bl  = BL_WheelLegs_->Get_FinalWheelRPM();
+        dbg_wheel.util_bl = fabsf(dbg_wheel.out_bl) / 16000.0f;
+        dbg_wheel.err_bl  = dbg_wheel.tgt_bl - dbg_wheel.rpm_bl;
+    }
+    if (BR_WheelLegs_)
+    {
+        dbg_wheel.out_br  = BR_WheelLegs_->Get_WheelOutput();
+        dbg_wheel.cur_br  = BR_WheelLegs_->Get_WheelCurrentFeedback();
+        dbg_wheel.rpm_br  = BR_WheelLegs_->Get_WheelRPM();
+        dbg_wheel.temp_br = BR_WheelLegs_->Get_WheelTemperature();
+        dbg_wheel.tgt_br  = BR_WheelLegs_->Get_FinalWheelRPM();
+        dbg_wheel.util_br = fabsf(dbg_wheel.out_br) / 16000.0f;
+        dbg_wheel.err_br  = dbg_wheel.tgt_br - dbg_wheel.rpm_br;
     }
 }
 

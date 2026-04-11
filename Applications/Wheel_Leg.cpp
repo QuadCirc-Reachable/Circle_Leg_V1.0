@@ -157,6 +157,20 @@ float Wheel_Leg::Get_WheelCurrentFeedback()
     return 0.0f;
 }
 
+float Wheel_Leg::Get_WheelTemperature()
+{
+    if (wheel_motor)
+        return wheel_motor->getTemperatureFeedback();
+    return 0.0f;
+}
+
+float Wheel_Leg::Get_WheelOutput()
+{
+    if (wheel_motor)
+        return wheel_motor->getOutput();
+    return 0.0f;
+}
+
 float Wheel_Leg::Get_LegCurrentFeedback()
 {
     if (leg_motor)
@@ -234,7 +248,18 @@ void Wheel_Leg::Execute_Wheel_Control()
 
     if (wheel_motor && Wheel_Vel_PIDs)
     {
-        wheel_motor->setOutput(Wheel_Vel_PIDs->operator()(final_wheel_rpm, wheel_motor->getRPMFeedback()));
+        // Deadzone: when target RPM is near zero, stop outputting to prevent
+        // stall current from coupling compensation / PID integral windup.
+        constexpr float WHEEL_RPM_DEADZONE = 15.0f;
+        if (fabsf(final_wheel_rpm) < WHEEL_RPM_DEADZONE && fabsf(wheel_motor->getRPMFeedback()) < WHEEL_RPM_DEADZONE)
+        {
+            wheel_motor->setOutput(0.0f);
+            Wheel_Vel_PIDs->reset();
+        }
+        else
+        {
+            wheel_motor->setOutput(Wheel_Vel_PIDs->operator()(final_wheel_rpm, wheel_motor->getRPMFeedback()));
+        }
     }
 }
 

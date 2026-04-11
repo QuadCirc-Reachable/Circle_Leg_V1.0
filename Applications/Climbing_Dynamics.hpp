@@ -25,9 +25,9 @@ enum class LegClimbPhase : uint8_t
 // =====================================================================
 struct LegClimbFeedback
 {
-    float leg_pos_deg;    // Current leg angle (deg)
-    float wheel_rpm;      // Wheel motor RPM
-    float wheel_current;  // Wheel motor current (A) — step detection
+    float leg_pos_deg;          // Current leg angle (deg)
+    float wheel_rpm;            // Wheel motor RPM
+    float leg_torque_residual;  // Leg torque - gravity comp (Nm) — step detection
 };
 
 /**
@@ -64,18 +64,19 @@ class Climbing_Dynamics
     struct Config
     {
         // --- Step geometry ---
-        float step_height_m = 0.010f;  // Step height h (m), must be < R
+        float step_height_m = 0.100f;  // Step height h (m), must be < R
 
         // --- Prep phase ---
         float prep_theta_deg     = 15.0f;  // Preparatory angle (deg) away from singularity
         float prep_tolerance_deg = 3.0f;   // Angle tolerance for PREP→DETECT transition
 
-        // --- Step detection (spike-based) ---
-        float spike_threshold  = 1.5f;    // Deviation from baseline (A) to trigger
-        float baseline_alpha   = 0.02f;   // LPF rate for baseline (~1.6 Hz @ 500 Hz)
-        float detect_confirm_s = 0.030f;  // Confirmation duration (s)
+        // --- Step detection (leg torque residual) ---
+        float torque_res_threshold = 3.0f;    // |residual - baseline| to trigger (Nm)
+        float baseline_alpha       = 0.02f;   // LPF rate for baseline (~1.6 Hz @ 500 Hz)
+        float detect_confirm_s     = 0.020f;  // Confirmation duration (s)
 
         // --- Climbing kinematics ---
+        float climb_omega   = 1.0f;  // Virtual wheel angular velocity for trajectory (rad/s)
         float theta_min_deg = 3.0f;  // Min θ for singularity clamping (deg)
 
         // --- Robot geometry ---
@@ -94,6 +95,9 @@ class Climbing_Dynamics
 
     /** Trigger climbing sequence for one leg (IDLE → PREP) */
     void startClimb(int idx);
+
+    /** Start climbing directly from current angle (skip PREP/DETECT) */
+    void startClimbDirect(int idx, float current_unsigned_deg);
 
     /** Trigger climbing sequence for all legs */
     void startClimbAll();
@@ -119,29 +123,46 @@ class Climbing_Dynamics
     /** Velocity feedforward for Set_Leg_Height (m/s). Valid when isDirectControl(). */
     float getTargetVelocity(int idx) const { return target_v_[idx]; }
 
-    /** LPF baseline of wheel current (A) — for debug */
-    float getBaseline(int idx) const { return legs_[idx].current_baseline; }
+    /** Direct motor angle output (deg, unsigned — apply climb_sign in caller). */
+    float getTargetThetaDeg(int idx) const { return target_theta_deg_[idx]; }
+
+    /** Motor angular velocity output (rad/s, unsigned — apply climb_sign in caller). */
+    float getTargetOmega(int idx) const { return target_omega_[idx]; }
+
+    /** LPF baseline of torque residual (Nm) — for debug */
+    float getBaseline(int idx) const { return legs_[idx].torque_baseline; }
+
+    /** Current β angle (rad) — for debug */
+    float getBeta(int idx) const { return legs_[idx].beta; }
+
+    /** β₀ at DETECT→CLIMBING transition — for debug */
+    float getBeta0() const { return computeBeta0(); }
 
     Config &config() { return cfg_; }
 
    private:
     struct LegState
     {
-        LegClimbPhase phase    = LegClimbPhase::IDLE;
-        float beta             = 0.0f;  // Climbing angle β (rad)
-        float detect_timer_s   = 0.0f;  // Detection confirmation timer
-        float current_baseline = 0.0f;  // LPF baseline of wheel current
+        LegClimbPhase phase     = LegClimbPhase::IDLE;
+        float beta              = 0.0f;  // Climbing angle β (rad)
+        float detect_timer_s    = 0.0f;  // Detection confirmation timer
+        float torque_baseline   = 0.0f;  // LPF baseline of torque residual (Nm)
+        float detect_theta_deg  = 0.0f;  // Hold angle for DETECT (0 = use prep angle)
+        float baseline_warmup_s = 0.0f;  // Warmup timer: fast LPF convergence before detection
     };
 
     float computeThetaDot(float theta_rad, float phi_w) const;
     float computeThetaEnd() const;
     float computeBeta0() const;
+    float computeBetaFromTheta(float theta_rad) const;
     float heightFromTheta(float theta_rad) const;
 
     Config cfg_;
     LegState legs_[4];
-    float target_h_[4] = {0};
-    float target_v_[4] = {0};
+    float target_h_[4]         = {0};
+    float target_v_[4]         = {0};
+    float target_theta_deg_[4] = {0};  // unsigned motor angle (deg): 180 = highest, 0 = lowest
+    float target_omega_[4]     = {0};  // unsigned angular velocity (rad/s, negative = toward 0°)
 };
 
 }  // namespace Applications

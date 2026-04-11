@@ -30,17 +30,33 @@ void Climbing_Dynamics::startClimb(int idx)
     legs_[idx].detect_timer_s = 0.0f;
 }
 
+void Climbing_Dynamics::startClimbDirect(int idx, float current_unsigned_deg)
+{
+    if (idx < 0 || idx > 3)
+        return;
+    // Skip PREP: go directly to DETECT at current angle, wait for step contact.
+    legs_[idx].phase             = LegClimbPhase::DETECT;
+    legs_[idx].beta              = 0.0f;
+    legs_[idx].detect_timer_s    = 0.0f;
+    legs_[idx].detect_theta_deg  = current_unsigned_deg;  // hold at this angle, not prep
+    legs_[idx].torque_baseline   = 0.0f;                  // fast-converge during warmup
+    legs_[idx].baseline_warmup_s = 0.0f;                  // reset warmup counter
+}
+
 void Climbing_Dynamics::startClimbAll()
 {
-    for (int i = 0; i < 4; i++)
-        startClimb(i);
+    // Front-first: only start FL(0)/FR(1).
+    // BL(2)/BR(3) auto-start when both front legs reach COMPLETE.
+    startClimb(0);
+    startClimb(1);
 }
 
 bool Climbing_Dynamics::isDirectControl(int idx) const
 {
     LegClimbPhase p = legs_[idx].phase;
-    // PREP uses normal height pipeline (smooth ramp), not direct climbing control
-    return p == LegClimbPhase::DETECT || p == LegClimbPhase::CLIMBING;
+    // All active phases use climbing-controlled angle (PREP/DETECT/CLIMBING/COMPLETE).
+    // COMPLETE holds the final climbing angle to prevent snap-back.
+    return p == LegClimbPhase::PREP || p == LegClimbPhase::DETECT || p == LegClimbPhase::CLIMBING || p == LegClimbPhase::COMPLETE;
 }
 
 // =====================================================================
@@ -49,8 +65,18 @@ bool Climbing_Dynamics::isDirectControl(int idx) const
 
 float Climbing_Dynamics::computeBeta0() const
 {
-    // β₀ = arcsin((R - h) / R)
-    float arg = (cfg_.wheel_radius_m - cfg_.step_height_m) / cfg_.wheel_radius_m;
+    float prep_rad = cfg_.prep_theta_deg * PI / 180.0f;
+    return computeBetaFromTheta(prep_rad);
+}
+
+float Climbing_Dynamics::computeBetaFromTheta(float theta_rad) const
+{
+    // From constraint: cos(θ) = (R + L − h − R·sin(β)) / L
+    // → sin(β) = [ R + L·(1 − cos(θ)) − h ] / R
+    float R   = cfg_.wheel_radius_m;
+    float L   = cfg_.leg_length_m;
+    float h   = cfg_.step_height_m;
+    float arg = (R + L * (1.0f - cosf(theta_rad)) - h) / R;
     if (arg > 1.0f)
         arg = 1.0f;
     if (arg < -1.0f)
@@ -123,24 +149,33 @@ void Climbing_Dynamics::update(const LegClimbFeedback feedback[4], float dt)
         {
         // ---------------------------------------------------------
         case LegClimbPhase::IDLE:
-            target_h_[i] = 0.0f;
-            target_v_[i] = 0.0f;
+            target_h_[i]         = 0.0f;
+            target_v_[i]         = 0.0f;
+            target_theta_deg_[i] = 0.0f;
+            target_omega_[i]     = 0.0f;
             break;
 
         // ---------------------------------------------------------
         case LegClimbPhase::PREP:
         {
             // Command leg to prep angle (near-extended) to avoid singularity
-            target_h_[i] = h_prep;
-            target_v_[i] = 0.0f;
+            target_h_[i]         = h_prep;
+            target_v_[i]         = 0.0f;
+            target_theta_deg_[i] = 180.0f - cfg_.prep_theta_deg;  // e.g. 165°
+            target_omega_[i]     = 0.0f;
+
+            // Warm up torque baseline during PREP so it's stable for DETECT
+            leg.torque_baseline = cfg_.baseline_alpha * fb.leg_torque_residual + (1.0f - cfg_.baseline_alpha) * leg.torque_baseline;
 
             // Check if leg has reached prep angle (within tolerance)
-            float current_theta = fabsf(fb.leg_pos_deg);
-            if (fabsf(current_theta - cfg_.prep_theta_deg) < cfg_.prep_tolerance_deg)
+            // Motor angle for prep = 180° - prep_theta_deg (e.g. 165° for 15° deadzone)
+            float current_theta    = fabsf(fb.leg_pos_deg);
+            float prep_motor_angle = 180.0f - cfg_.prep_theta_deg;
+            if (fabsf(current_theta - prep_motor_angle) < cfg_.prep_tolerance_deg)
             {
-                leg.phase            = LegClimbPhase::DETECT;
-                leg.detect_timer_s   = 0.0f;
-                leg.current_baseline = fb.wheel_current;  // Initialize baseline to current value
+                leg.phase          = LegClimbPhase::DETECT;
+                leg.detect_timer_s = 0.0f;
+                // Baseline is already warm from LPF above
             }
             break;
         }
@@ -148,23 +183,38 @@ void Climbing_Dynamics::update(const LegClimbFeedback feedback[4], float dt)
         // ---------------------------------------------------------
         case LegClimbPhase::DETECT:
         {
-            // Hold prep angle while monitoring wheel current for step contact
-            target_h_[i] = h_prep;
-            target_v_[i] = 0.0f;
+            // Hold at detect angle while monitoring torque for step contact.
+            // detect_theta_deg > 0 means we entered via startClimbDirect (skip PREP).
+            float hold_angle = (leg.detect_theta_deg > 0.0f) ? leg.detect_theta_deg : (180.0f - cfg_.prep_theta_deg);
+            float hold_h     = heightFromTheta((180.0f - hold_angle) * PI / 180.0f);
 
-            // Update baseline with slow LPF
-            leg.current_baseline = cfg_.baseline_alpha * fb.wheel_current + (1.0f - cfg_.baseline_alpha) * leg.current_baseline;
+            target_h_[i]         = hold_h;
+            target_v_[i]         = 0.0f;
+            target_theta_deg_[i] = hold_angle;
+            target_omega_[i]     = 0.0f;
 
-            // Spike detection: deviation from baseline
-            float deviation = fabsf(fb.wheel_current - leg.current_baseline);
-            if (deviation > cfg_.spike_threshold)
+            // Warmup: use fast LPF (alpha=0.3) for first 0.1s to converge baseline,
+            // then switch to slow LPF. Detection disabled during warmup.
+            constexpr float warmup_duration = 0.1f;  // 50 frames @ 500Hz
+            constexpr float fast_alpha      = 0.3f;
+            bool warmed_up                  = (leg.baseline_warmup_s >= warmup_duration);
+            float alpha_use                 = warmed_up ? cfg_.baseline_alpha : fast_alpha;
+            leg.torque_baseline             = alpha_use * fb.leg_torque_residual + (1.0f - alpha_use) * leg.torque_baseline;
+            leg.baseline_warmup_s += dt;
+
+            // Step detection: only after warmup
+            float deviation = fabsf(fb.leg_torque_residual - leg.torque_baseline);
+            if (warmed_up && deviation > cfg_.torque_res_threshold)
             {
                 leg.detect_timer_s += dt;
                 if (leg.detect_timer_s >= cfg_.detect_confirm_s)
                 {
-                    // Step confirmed — begin climbing
-                    leg.phase = LegClimbPhase::CLIMBING;
-                    leg.beta  = computeBeta0();
+                    // Step confirmed — begin climbing from hold angle
+                    leg.phase             = LegClimbPhase::CLIMBING;
+                    float theta_model_rad = (180.0f - hold_angle) * PI / 180.0f;
+                    if (theta_model_rad < cfg_.theta_min_deg * PI / 180.0f)
+                        theta_model_rad = cfg_.theta_min_deg * PI / 180.0f;
+                    leg.beta = computeBetaFromTheta(theta_model_rad);
                 }
             }
             else
@@ -177,8 +227,10 @@ void Climbing_Dynamics::update(const LegClimbFeedback feedback[4], float dt)
         // ---------------------------------------------------------
         case LegClimbPhase::CLIMBING:
         {
-            // Integrate β:  dβ/dt = φ_w
-            float phi_w = fb.wheel_rpm * 2.0f * PI / 60.0f;  // RPM → rad/s
+            // Integrate β at fixed rate (independent of actual wheel speed).
+            // Using actual wheel RPM fails because the wheel stalls against
+            // the step edge, giving phi_w ≈ 0 and freezing the trajectory.
+            float phi_w = cfg_.climb_omega;  // constant virtual angular velocity (rad/s)
             leg.beta += phi_w * dt;
 
             // Compute target θ from constraint:
@@ -192,13 +244,27 @@ void Climbing_Dynamics::update(const LegClimbFeedback feedback[4], float dt)
             if (cth < -1.0f)
                 cth = -1.0f;
             float theta_rad = acosf(cth);
+            float theta_deg = theta_rad * 180.0f / PI;
 
-            // Compute θ̇ from kinematic equation
-            float theta_dot = computeThetaDot(theta_rad, phi_w);
+            // Correct θ̇ for β-driven trajectory:
+            //   d(cosθ)/dt = −R·cos(β)·β̇ / L
+            //   θ̇ = R·cos(β)·β̇ / (L·sin(θ))
+            float sin_theta = sinf(theta_rad);
+            float min_sin   = 0.05f;  // singularity guard
+            if (sin_theta < min_sin)
+                sin_theta = min_sin;
+            float theta_dot = R * cosf(leg.beta) * phi_w / (L * sin_theta);
 
-            // Convert to height & velocity for the pipeline
+            // Direct angle output for Chassis.cpp (bypass height→angle mapping)
+            // Motor convention: 180° = body highest, 0° = body lowest
+            // As θ_model increases, motor unsigned angle = 180°-θ DECREASES
+            target_theta_deg_[i] = 180.0f - theta_deg;
+            // Motor angular velocity: d(180°-θ)/dt = -θ̇ (negative = toward 0°)
+            target_omega_[i] = -theta_dot;  // rad/s, unsigned frame
+
+            // Also keep height output for debug/display
             target_h_[i] = heightFromTheta(theta_rad);
-            target_v_[i] = -L * sinf(theta_rad) * theta_dot;  // dh/dt = −L·sinθ·θ̇
+            target_v_[i] = -L * sinf(theta_rad) * theta_dot;
 
             // End condition: β ≥ 90° or θ ≥ θ_end
             if (leg.beta >= PI / 2.0f || theta_rad >= theta_end)
@@ -210,10 +276,26 @@ void Climbing_Dynamics::update(const LegClimbFeedback feedback[4], float dt)
 
         // ---------------------------------------------------------
         case LegClimbPhase::COMPLETE:
-            target_h_[i] = 0.0f;
-            target_v_[i] = 0.0f;
-            leg.phase    = LegClimbPhase::IDLE;
+        {
+            // Hold at the end-of-climb angle: wheel is on step, leg stays bent.
+            //   H_complete = R + L - h
+            //   cos(θ_model) = (L - h) / L
+            float L   = cfg_.leg_length_m;
+            float h   = cfg_.step_height_m;
+            float cth = (L - h) / L;
+            if (cth > 1.0f)
+                cth = 1.0f;
+            if (cth < -1.0f)
+                cth = -1.0f;
+            float theta_complete_deg = acosf(cth) * 180.0f / PI;
+
+            target_theta_deg_[i] = 180.0f - theta_complete_deg;
+            target_omega_[i]     = 0.0f;
+            target_h_[i]         = heightFromTheta(acosf(cth));
+            target_v_[i]         = 0.0f;
+            // Stay in COMPLETE — caller must explicitly reset to IDLE
             break;
+        }
         }
 
         // Clamp velocity output
@@ -221,6 +303,21 @@ void Climbing_Dynamics::update(const LegClimbFeedback feedback[4], float dt)
             target_v_[i] = cfg_.max_target_v;
         if (target_v_[i] < -cfg_.max_target_v)
             target_v_[i] = -cfg_.max_target_v;
+    }
+
+    // Front-first gating: auto-start back legs when both front legs reach COMPLETE.
+    // Skip PREP/DETECT — start CLIMBING directly from current leg angle.
+    if (legs_[0].phase == LegClimbPhase::COMPLETE && legs_[1].phase == LegClimbPhase::COMPLETE)
+    {
+        for (int i = 2; i < 4; i++)
+        {
+            if (legs_[i].phase == LegClimbPhase::IDLE)
+            {
+                // Convert signed feedback to unsigned: motor angle = |feedback|
+                float unsigned_deg = fabsf(feedback[i].leg_pos_deg);
+                startClimbDirect(i, unsigned_deg);
+            }
+        }
     }
 }
 
