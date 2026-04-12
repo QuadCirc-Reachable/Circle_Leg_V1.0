@@ -143,7 +143,7 @@ The system operates through the following states, controlled by gamepad buttons:
 | **CALIBRATION** | 0 | Re-enters HT motor mode, sets zero position, then transitions to IDLE |
 | **IDLE** | 1 | All motors stopped, zero output |
 | **ENERGY_SAVING** | 2 | Legs at 0° (folded), stiff position hold ($K_p=20$, $K_d=1.5$), basic wheel driving |
-| **COMFORT** | 3 | **Variable-impedance active suspension** with IMU-based body leveling, skyhook damping, and warp compensation |
+| **COMFORT** | 3 | **Variable-impedance active suspension** with IMU-based body leveling and warp compensation |
 | **CLIMBING** | 4 | **Per-leg kinematic step climbing** with torque-residual detection, front-first then rear-legs |
 | **FREE_CONTROL** | 5 | Direct trigger-to-angle mapping for manual leg positioning |
 | **DEBUG** | 6 | Height control via buttons, no PID leveling (for testing) |
@@ -276,25 +276,7 @@ $$\boxed{\tau_{ff} = -F_{load} \cdot r \cdot \sin(\theta)}$$
 - $k_v = 800$ N/m → $K_p = 3.38$ Nm/rad
 - $c_v = 250$ Ns/m → $K_d = 1.06$ Nms/rad
 
-### 10.2 Skyhook Damping (Kd Modulation)
-
-Per-leg vertical velocity from rigid-body kinematics:
-
-$$V_{FL} = V_z - \omega_r \cdot \frac{W_F}{2} + \omega_p \cdot \frac{L}{2}$$
-
-$$V_{FR} = V_z + \omega_r \cdot \frac{W_F}{2} + \omega_p \cdot \frac{L}{2}$$
-
-$$V_{BL} = V_z - \omega_r \cdot \frac{W_B}{2} - \omega_p \cdot \frac{L}{2}$$
-
-$$V_{BR} = V_z + \omega_r \cdot \frac{W_B}{2} - \omega_p \cdot \frac{L}{2}$$
-
-Skyhook law:
-
-$$c_{v,i} = c_{base} + c_{sky} \cdot |V_{leg,i}|$$
-
-> Note: Currently disabled ($c_{sky} = 0$) due to noisy accelerometer-based velocity estimation.
-
-### 10.3 Warp Kp Modulation (Ground Contact)
+### 10.2 Warp Kp Modulation (Ground Contact)
 
 Diagonal load imbalance detection:
 
@@ -306,7 +288,7 @@ $$k_{v,i} = k_{v,base} \cdot \left(1 - \gamma \cdot s_{warp,i} \cdot \text{clamp
 
 **Effect:** Overloaded diagonal becomes softer → compresses → redistributes load to the underloaded diagonal.
 
-### 10.4 Dynamic Load Estimation (FFW)
+### 10.3 Dynamic Load Estimation (FFW)
 
 Total mass estimated from motor currents (slow LPF):
 
@@ -316,7 +298,7 @@ Per-leg gravity compensation:
 
 $$\tau_{ff,i} = -\left(\frac{M_{est}}{4} + m_{leg}\right) \cdot g \cdot r \cdot \sin(\theta_i) + \tau_{warp,i}$$
 
-### 10.5 Mode Entry Ramp
+### 10.4 Mode Entry Ramp
 
 On entering COMFORT, the Kp/Kd values ramp from entry defaults ($K_p=35$, $K_d=1.5$) to the computed impedance values over ~0.4 s:
 
@@ -578,7 +560,7 @@ Where $k_F = W_F / W_{avg}$, $k_B = W_B / W_{avg}$.
 |------|-------------|
 | `Chassis.hpp / .cpp` | Main chassis state machine, mode handlers, body leveling, inverse kinematics |
 | `Wheel_Leg.hpp / .cpp` | Per-leg motor control: height→angle conversion, MIT command, wheel PID, decoupling |
-| `Impedance_Controller.hpp / .cpp` | Variable-impedance active suspension: Cartesian→MIT mapping, skyhook, warp modulation |
+| `Impedance_Controller.hpp / .cpp` | Variable-impedance active suspension: Cartesian→MIT mapping, warp modulation |
 | `Climbing_Dynamics.hpp / .cpp` | Per-leg climbing state machine, kinematic trajectory, torque-residual step detection |
 | `Ground_Contact.hpp / .cpp` | Warp-mode PI compensator for 4-wheel ground contact |
 | `Controller.hpp / .cpp` | Joystick-to-velocity mapping |

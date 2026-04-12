@@ -60,10 +60,6 @@ struct DbgClimbing
     // Raw unsigned theta from Climbing_Dynamics (deg, 180=highest, 0=lowest)
     float raw_theta_fl = 0.0f, raw_theta_fr = 0.0f, raw_theta_bl = 0.0f, raw_theta_br = 0.0f;
     float wheel_rpm = 0.0f;  // climbing forward RPM being commanded
-    // Pitch control during climbing
-    float pitch_setpoint = 0.0f;  // PID target (deg, + = backward lean)
-    float pitch_actual   = 0.0f;  // IMU pitch (deg)
-    float pitch_h_adj    = 0.0f;  // PID output (m, height correction)
 };
 
 struct DbgControl
