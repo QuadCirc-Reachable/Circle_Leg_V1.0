@@ -93,6 +93,14 @@ Half-size validation, as reported in the team's final project report:
 All control algorithms take *R*, *r* and the step height as parameters, so the same code scaled
 directly to the full-size geometry, where the larger offset covers the 5–18 cm target.
 
+<p align="center">
+  <a href="https://github.com/QuadCirc-Reachable/Circle_Leg_V2.0">
+    <img src="docs/figures/v2_fullsize.jpg" width="220" alt="The full-size successor, Circle_Leg_V2">
+  </a>
+</p>
+<p align="center"><sub>The full-size successor running the same control stack · 采用同一控制架构的全尺寸整车 →
+<a href="https://github.com/QuadCirc-Reachable/Circle_Leg_V2.0">Circle_Leg_V2.0</a></sub></p>
+
 ---
 
 ## System Architecture | 系统架构
@@ -259,6 +267,10 @@ later host commits send the 14-byte V2 message.
 
 ## Team | 团队
 
+<p align="center">
+  <img src="docs/figures/team.jpg" width="560" alt="The REACHABLE team at the HKUST ISD Class of 2026 event">
+</p>
+
 REACHABLE (QuadCirc), HKUST FYP SL05a-25. Firmware by **LIU Hualin** (embedded control lead).
 Team: FANG Ruoyun (perception & HMI), WU Ziyao (mechanical architecture & communication),
 XU Jusen (mechanical lead). Supervisors: Prof. Chi-Ying TSUI and Prof. Winnie Suk Wai LEUNG;
@@ -272,4 +284,9 @@ licenses. The `RM2025-Core` submodule is private and not covered.
 ## Acknowledgments | 致谢
 
 HKUST ENTERPRIZE RoboMaster team (RM2025-Core, G4 template), Jason GAN (original HT8115 driver),
-STMicroelectronics and the FreeRTOS project.
+STMicroelectronics and the FreeRTOS project, and our friends and classmates at HKUST ISD.
+
+<p align="center">
+  <img src="docs/figures/isd_friends.jpg" width="480" alt="With friends from HKUST ISD">
+</p>
+<p align="center"><sub>With our friends from HKUST ISD · 和 ISD 的朋友们合影</sub></p>
