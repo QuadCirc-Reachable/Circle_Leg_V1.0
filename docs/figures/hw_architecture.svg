@@ -1,0 +1,291 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 540" font-family="'Segoe UI','Inter',Arial,sans-serif">
+  <rect width="1100" height="540" fill="#fff"/>
+  <defs>
+    <marker id="ak" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#333"/></marker>
+    <marker id="ay" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#f9a825"/></marker>
+    <marker id="ap" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#6a1b9a"/></marker>
+    <marker id="apr" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><path d="M8,0 L0,3 L8,6" fill="#6a1b9a"/></marker>
+    <marker id="ayb" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><path d="M8,0 L0,3 L8,6" fill="#f9a825"/></marker>
+  </defs>
+
+  <!-- ════════════ LEFT PANEL: BLOCK DIAGRAM ════════════ -->
+  <text x="265" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#222">(a) System Block Diagram</text>
+  <rect x="8" y="30" width="514" height="498" rx="8" fill="none" stroke="#ccc" stroke-width="1" stroke-dasharray="6,3"/>
+
+  <!-- User Input -->
+  <rect x="195" y="44" width="140" height="34" rx="8" fill="#f5f5f5" stroke="#333" stroke-width="1.5"/>
+  <text x="265" y="58" text-anchor="middle" font-size="10" font-weight="600" fill="#333">User Input</text>
+  <text x="265" y="70" text-anchor="middle" font-size="8.5" fill="#666">Xbox Controller</text>
+  <line x1="265" y1="78" x2="265" y2="104" stroke="#333" stroke-width="1.3" marker-end="url(#ak)"/>
+
+  <!-- DCDC 19V (left of HOST) -->
+  <rect x="22" y="112" width="100" height="28" rx="5" fill="#fff8e1" stroke="#f9a825" stroke-width="1.5"/>
+  <text x="72" y="126" text-anchor="middle" font-size="8.5" font-weight="600" fill="#e65100">DCDC 19V Step-down</text>
+  <text x="72" y="136" text-anchor="middle" font-size="7" fill="#f57f17">→ Mini PC Host</text>
+  <!-- DCDC 19V → HOST (yellow arrow right) -->
+  <line x1="122" y1="126" x2="192" y2="126" stroke="#f9a825" stroke-width="1.5" marker-end="url(#ay)"/>
+  <text x="157" y="120" text-anchor="middle" font-size="7.5" fill="#e65100">19V</text>
+
+  <!-- HOST -->
+  <rect x="192" y="104" width="146" height="42" rx="8" fill="#e8edf3" stroke="#333" stroke-width="1.5"/>
+  <text x="265" y="122" text-anchor="middle" font-size="11" font-weight="700" fill="#333">HOST</text>
+  <text x="265" y="137" text-anchor="middle" font-size="9" fill="#555">Mini PC (i7-1360P)</text>
+
+  <!-- Depth Camera (right of HOST, arrow from HOST → Camera) -->
+  <rect x="380" y="108" width="126" height="34" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="443" y="122" text-anchor="middle" font-size="10" font-weight="600" fill="#2e7d32">Depth Camera</text>
+  <text x="443" y="135" text-anchor="middle" font-size="8.5" fill="#388e3c">Intel RealSense D435</text>
+  <line x1="338" y1="125" x2="380" y2="125" stroke="#333" stroke-width="1.3" marker-end="url(#ak)"/>
+  <text x="359" y="118" text-anchor="middle" font-size="7.5" fill="#2e7d32">USB 3.0</text>
+
+  <!-- UART -->
+  <line x1="265" y1="146" x2="265" y2="200" stroke="#333" stroke-width="1.3" marker-end="url(#ak)"/>
+  <text x="248" y="168" text-anchor="end" font-size="8" fill="#555">UART via RS485</text>
+  <text x="248" y="180" text-anchor="end" font-size="7.5" fill="#888">2 Mbps · CH343</text>
+
+  <!-- STM32 -->
+  <rect x="180" y="200" width="170" height="46" rx="8" fill="#e3eefa" stroke="#1a3c6e" stroke-width="2"/>
+  <text x="265" y="219" text-anchor="middle" font-size="11" font-weight="700" fill="#1a3c6e">Embedded Controller</text>
+  <text x="265" y="236" text-anchor="middle" font-size="9.5" fill="#3a5f8a">STM32G473 · FreeRTOS · 500 Hz</text>
+
+  <!-- IMU (right of STM32) -->
+  <rect x="392" y="210" width="100" height="30" rx="8" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+  <text x="442" y="224" text-anchor="middle" font-size="10" font-weight="600" fill="#6a1b9a">IMU</text>
+  <text x="442" y="235" text-anchor="middle" font-size="8" fill="#8e24aa">ICM-42688-P</text>
+  <line x1="350" y1="225" x2="392" y2="225" stroke="#6a1b9a" stroke-width="1.3" marker-end="url(#ap)"/>
+  <text x="371" y="218" text-anchor="middle" font-size="8" fill="#6a1b9a">SPI</text>
+
+  <!-- CAN Ch1 branch (left) -->
+  <path d="M220,246 L220,272 L140,302" fill="none" stroke="#333" stroke-width="1.3" marker-end="url(#ak)"/>
+  <text x="155" y="270" text-anchor="middle" font-size="8" fill="#555">CAN Ch 1</text>
+  <text x="155" y="282" text-anchor="middle" font-size="7.5" fill="#888">Current Loop</text>
+
+  <!-- CAN Ch2 branch (right) -->
+  <path d="M310,246 L310,272 L390,302" fill="none" stroke="#333" stroke-width="1.3" marker-end="url(#ak)"/>
+  <text x="375" y="270" text-anchor="middle" font-size="8" fill="#555">CAN Ch 2</text>
+  <text x="375" y="282" text-anchor="middle" font-size="7.5" fill="#888">MIT Control</text>
+
+  <!-- C620 ESC -->
+  <rect x="70" y="302" width="130" height="36" rx="8" fill="#f5f5f5" stroke="#333" stroke-width="1.5"/>
+  <text x="135" y="318" text-anchor="middle" font-size="10" font-weight="600" fill="#333">C620 Motor Drivers</text>
+  <text x="135" y="331" text-anchor="middle" font-size="8" fill="#888">ESC × 4</text>
+  <line x1="135" y1="338" x2="135" y2="368" stroke="#333" stroke-width="1.3" marker-end="url(#ak)"/>
+
+  <!-- Integrated Drivers -->
+  <rect x="325" y="302" width="140" height="36" rx="8" fill="#f5f5f5" stroke="#333" stroke-width="1.5"/>
+  <text x="395" y="318" text-anchor="middle" font-size="10" font-weight="600" fill="#333">Integrated Drivers</text>
+  <text x="395" y="331" text-anchor="middle" font-size="8" fill="#888">HT8115 × 4</text>
+  <line x1="395" y1="338" x2="395" y2="368" stroke="#333" stroke-width="1.3" marker-end="url(#ak)"/>
+
+  <!-- M3508 Wheel Motors -->
+  <rect x="65" y="368" width="140" height="36" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="135" y="384" text-anchor="middle" font-size="10" font-weight="700" fill="#2e7d32">M3508 Wheel Motors</text>
+  <text x="135" y="397" text-anchor="middle" font-size="8" fill="#388e3c">12:1 Gear · PID Velocity</text>
+
+  <!-- Joint Motors HT8115 -->
+  <rect x="320" y="368" width="150" height="36" rx="8" fill="#fce4ec" stroke="#c62828" stroke-width="1.5"/>
+  <text x="395" y="384" text-anchor="middle" font-size="10" font-weight="700" fill="#c62828">Joint Motors</text>
+  <text x="395" y="397" text-anchor="middle" font-size="8" fill="#d32f2f">HT8115 · MIT Impedance · >14 Nm</text>
+
+  <!-- Battery 24V -->
+  <rect x="165" y="438" width="200" height="36" rx="18" fill="#fff8e1" stroke="#f9a825" stroke-width="2"/>
+  <text x="265" y="454" text-anchor="middle" font-size="10" font-weight="700" fill="#e65100">Battery 24V</text>
+  <text x="265" y="466" text-anchor="middle" font-size="7.5" fill="#f57f17">DJI TB-48 · 22.8V · 5700mAh</text>
+
+  <!-- POWER: Battery → DCDC 19V (left edge route, dashed) -->
+  <path d="M165,456 L14,456 L14,126 L22,126" fill="none" stroke="#f9a825" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#ay)"/>
+
+  <!-- POWER: Battery → 24V up center vertical to STM32 (between motor columns) -->
+  <line x1="265" y1="438" x2="265" y2="248" stroke="#f9a825" stroke-width="1.5" marker-end="url(#ay)"/>
+  <text x="275" y="335" font-size="7.5" fill="#e65100" font-weight="600">24V</text>
+
+  <!-- POWER: Battery → M3508 (24V branch left) -->
+  <path d="M265,404 L205,390" fill="none" stroke="#f9a825" stroke-width="1.3" marker-end="url(#ay)"/>
+  <text x="230" y="400" text-anchor="middle" font-size="7" fill="#e65100">24V</text>
+
+  <!-- POWER: Battery → HT8115 (24V branch right) -->
+  <path d="M265,404 L320,390" fill="none" stroke="#f9a825" stroke-width="1.3" marker-end="url(#ay)"/>
+  <text x="298" y="400" text-anchor="middle" font-size="7" fill="#e65100">24V</text>
+
+  <!-- Legend left -->
+  <g transform="translate(28,516)">
+    <line x1="0" y1="0" x2="22" y2="0" stroke="#333" stroke-width="1.5"/>
+    <text x="27" y="4" font-size="8" fill="#555">Signal Flow</text>
+    <line x1="100" y1="0" x2="122" y2="0" stroke="#f9a825" stroke-width="1.8"/>
+    <text x="127" y="4" font-size="8" fill="#555">Power (24V)</text>
+    <line x1="195" y1="0" x2="217" y2="0" stroke="#f9a825" stroke-width="1.2" stroke-dasharray="5,3"/>
+    <text x="222" y="4" font-size="8" fill="#555">Regulated (19V)</text>
+  </g>
+
+  <!-- ════════════ RIGHT PANEL: CHASSIS TOP-DOWN ════════════ -->
+  <text x="810" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="#222">(b) Prototype Chassis — Top-Down View</text>
+  <rect x="545" y="30" width="545" height="498" rx="8" fill="none" stroke="#ccc" stroke-width="1" stroke-dasharray="6,3"/>
+
+  <!-- Chassis body -->
+  <rect x="630" y="75" width="360" height="410" rx="16" fill="#fafafa" stroke="#999" stroke-width="2"/>
+  <rect x="655" y="100" width="310" height="360" rx="10" fill="#f5f5f5" stroke="#bbb" stroke-width="1"/>
+
+  <!-- Front indicator -->
+  <polygon points="810,48 800,68 820,68" fill="#1565c0"/>
+  <text x="810" y="44" text-anchor="middle" font-size="9" font-weight="700" fill="#1565c0">FRONT</text>
+
+  <!-- ═══ 4 WHEELS ═══ -->
+  <rect x="608" y="88" width="28" height="56" rx="6" fill="#444" stroke="#222" stroke-width="1.5"/>
+  <text x="622" y="120" text-anchor="middle" font-size="7" fill="#fff" font-weight="600">FL</text>
+  <rect x="984" y="88" width="28" height="56" rx="6" fill="#444" stroke="#222" stroke-width="1.5"/>
+  <text x="998" y="120" text-anchor="middle" font-size="7" fill="#fff" font-weight="600">FR</text>
+  <rect x="608" y="416" width="28" height="56" rx="6" fill="#444" stroke="#222" stroke-width="1.5"/>
+  <text x="622" y="448" text-anchor="middle" font-size="7" fill="#fff" font-weight="600">BL</text>
+  <rect x="984" y="416" width="28" height="56" rx="6" fill="#444" stroke="#222" stroke-width="1.5"/>
+  <text x="998" y="448" text-anchor="middle" font-size="7" fill="#fff" font-weight="600">BR</text>
+
+  <!-- ═══ LEFT JOINT MOTORS (HT8115) ═══ -->
+  <circle cx="665" cy="120" r="17" fill="#fce4ec" stroke="#c62828" stroke-width="1.5"/>
+  <text x="665" y="118" text-anchor="middle" font-size="6.5" font-weight="700" fill="#c62828">HT</text>
+  <text x="665" y="128" text-anchor="middle" font-size="5.5" fill="#c62828">8115</text>
+
+  <circle cx="665" cy="440" r="17" fill="#fce4ec" stroke="#c62828" stroke-width="1.5"/>
+  <text x="665" y="438" text-anchor="middle" font-size="6.5" font-weight="700" fill="#c62828">HT</text>
+  <text x="665" y="448" text-anchor="middle" font-size="5.5" fill="#c62828">8115</text>
+
+  <!-- ═══ RIGHT JOINT MOTORS (HT8115) ═══ -->
+  <circle cx="955" cy="120" r="17" fill="#fce4ec" stroke="#c62828" stroke-width="1.5"/>
+  <text x="955" y="118" text-anchor="middle" font-size="6.5" font-weight="700" fill="#c62828">HT</text>
+  <text x="955" y="128" text-anchor="middle" font-size="5.5" fill="#c62828">8115</text>
+
+  <circle cx="955" cy="440" r="17" fill="#fce4ec" stroke="#c62828" stroke-width="1.5"/>
+  <text x="955" y="438" text-anchor="middle" font-size="6.5" font-weight="700" fill="#c62828">HT</text>
+  <text x="955" y="448" text-anchor="middle" font-size="5.5" fill="#c62828">8115</text>
+
+  <!-- ═══ LEFT WHEEL MOTORS (M3508) ═══ -->
+  <rect x="646" y="148" width="38" height="20" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="665" y="162" text-anchor="middle" font-size="6.5" font-weight="600" fill="#2e7d32">M3508</text>
+
+  <rect x="646" y="392" width="38" height="20" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="665" y="406" text-anchor="middle" font-size="6.5" font-weight="600" fill="#2e7d32">M3508</text>
+
+  <!-- ═══ RIGHT WHEEL MOTORS (M3508) ═══ -->
+  <rect x="936" y="148" width="38" height="20" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="955" y="162" text-anchor="middle" font-size="6.5" font-weight="600" fill="#2e7d32">M3508</text>
+
+  <rect x="936" y="392" width="38" height="20" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="955" y="406" text-anchor="middle" font-size="6.5" font-weight="600" fill="#2e7d32">M3508</text>
+
+  <!-- ═══ CENTER COMPONENTS ═══ -->
+  <!-- RealSense D435 (front center) -->
+  <rect x="784" y="78" width="52" height="22" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="810" y="90" text-anchor="middle" font-size="7" font-weight="700" fill="#2e7d32">RealSense</text>
+  <text x="810" y="98" text-anchor="middle" font-size="5.5" fill="#388e3c">D435</text>
+  <line x1="810" y1="100" x2="810" y2="115" stroke="#2e7d32" stroke-width="1" stroke-dasharray="3,2"/>
+
+  <!-- Mini PC Host -->
+  <rect x="755" y="115" width="110" height="46" rx="6" fill="#e8edf3" stroke="#333" stroke-width="1.5"/>
+  <text x="810" y="133" text-anchor="middle" font-size="9" font-weight="700" fill="#333">Mini PC Host</text>
+  <text x="810" y="146" text-anchor="middle" font-size="7" fill="#666">i7-1360P</text>
+  <text x="810" y="157" text-anchor="middle" font-size="6.5" fill="#888">Vision + User Input</text>
+
+  <!-- UART line (Host → STM32) -->
+  <line x1="810" y1="161" x2="810" y2="232" stroke="#555" stroke-width="1.3"/>
+  <text x="822" y="200" font-size="7" fill="#555">UART</text>
+
+  <!-- STM32 MCU -->
+  <rect x="765" y="232" width="90" height="48" rx="6" fill="#e3eefa" stroke="#1a3c6e" stroke-width="2"/>
+  <text x="810" y="250" text-anchor="middle" font-size="9" font-weight="700" fill="#1a3c6e">STM32G4</text>
+  <text x="810" y="263" text-anchor="middle" font-size="7" fill="#3a5f8a">Main PCB</text>
+  <text x="810" y="274" text-anchor="middle" font-size="6.5" fill="#3a5f8a">500 Hz Control</text>
+
+  <!-- IMU (below STM32, bidirectional arrow) -->
+  <rect x="789" y="290" width="42" height="20" rx="3" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1"/>
+  <text x="810" y="303" text-anchor="middle" font-size="6.5" font-weight="600" fill="#6a1b9a">IMU</text>
+  <!-- Bidirectional SPI arrow -->
+  <line x1="810" y1="280" x2="810" y2="290" stroke="#6a1b9a" stroke-width="1.2" marker-start="url(#apr)" marker-end="url(#ap)"/>
+  <text x="826" y="288" font-size="6" fill="#6a1b9a">SPI</text>
+
+  <!-- DCDC 19V (left of battery area) -->
+  <rect x="690" y="326" width="56" height="22" rx="4" fill="#fff8e1" stroke="#f9a825" stroke-width="1"/>
+  <text x="718" y="337" text-anchor="middle" font-size="6.5" font-weight="600" fill="#e65100">19V</text>
+  <text x="718" y="346" text-anchor="middle" font-size="5.5" fill="#f57f17">DCDC</text>
+
+  <!-- Battery -->
+  <rect x="762" y="365" width="96" height="48" rx="8" fill="#fff8e1" stroke="#f9a825" stroke-width="2"/>
+  <text x="810" y="384" text-anchor="middle" font-size="9" font-weight="700" fill="#e65100">Battery</text>
+  <text x="810" y="396" text-anchor="middle" font-size="7.5" fill="#f57f17">DJI TB-48</text>
+  <text x="810" y="407" text-anchor="middle" font-size="6.5" fill="#f57f17">22.8V · 5700mAh</text>
+
+  <!-- POWER: Battery → DCDC 19V (short connection) -->
+  <path d="M762,380 L746,380 L746,348" fill="none" stroke="#f9a825" stroke-width="1.3" marker-end="url(#ay)"/>
+
+  <!-- POWER: DCDC 19V → Host (routed right side, then up) -->
+  <path d="M746,335 L868,335 L868,140 L865,140" fill="none" stroke="#f9a825" stroke-width="1.2" stroke-dasharray="5,3" marker-end="url(#ay)"/>
+  <text x="872" y="240" font-size="6.5" fill="#e65100" font-weight="600" transform="rotate(90,872,240)">19V</text>
+
+  <!-- POWER: Battery → STM32 (24V, routed left side) -->
+  <path d="M762,385 L755,385 L755,268 L765,268" fill="none" stroke="#f9a825" stroke-width="1.3" marker-end="url(#ay)"/>
+  <text x="748" y="326" text-anchor="end" font-size="6.5" fill="#e65100">24V</text>
+
+  <!-- POWER: Battery → Motors (24V stub arrows outward) -->
+  <path d="M762,395 L735,395 L700,395" fill="none" stroke="#f9a825" stroke-width="1.2" marker-end="url(#ay)"/>
+  <text x="690" y="392" text-anchor="end" font-size="6" fill="#e65100">24V</text>
+  <path d="M858,395 L885,395 L920,395" fill="none" stroke="#f9a825" stroke-width="1.2" marker-end="url(#ay)"/>
+  <text x="930" y="392" font-size="6" fill="#e65100">24V</text>
+
+  <!-- ═══ CAN 1 (green dashed) — Left rail x=710, Right rail x=910 ═══ -->
+  <!-- Left: STM32 → rail -->
+  <path d="M765,258 L710,258" fill="none" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- Left vertical rail -->
+  <path d="M710,158 L710,402" fill="none" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- FL M3508 tap (left) -->
+  <path d="M710,158 L684,158" fill="none" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- BL M3508 tap (left) -->
+  <path d="M710,402 L684,402" fill="none" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="5,3"/>
+
+  <!-- Right: STM32 → rail -->
+  <path d="M855,258 L910,258" fill="none" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- Right vertical rail -->
+  <path d="M910,158 L910,402" fill="none" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- FR M3508 tap (from rail RIGHT to motor LEFT edge — symmetric) -->
+  <path d="M910,158 L936,158" fill="none" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- BR M3508 tap -->
+  <path d="M910,402 L936,402" fill="none" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="5,3"/>
+
+  <!-- CAN 1 labels -->
+  <text x="706" y="215" text-anchor="end" font-size="7" fill="#2e7d32" font-weight="600">CAN 1</text>
+  <text x="914" y="215" font-size="7" fill="#2e7d32" font-weight="600">CAN 1</text>
+
+  <!-- ═══ CAN 2 (red dashed) — Left rail x=725, Right rail x=895 ═══ -->
+  <!-- Left: STM32 → rail -->
+  <path d="M765,268 L725,268" fill="none" stroke="#c62828" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- Left vertical rail -->
+  <path d="M725,120 L725,440" fill="none" stroke="#c62828" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- FL HT tap (left) -->
+  <path d="M725,120 L682,120" fill="none" stroke="#c62828" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- BL HT tap (left) -->
+  <path d="M725,440 L682,440" fill="none" stroke="#c62828" stroke-width="1.2" stroke-dasharray="5,3"/>
+
+  <!-- Right: STM32 → rail -->
+  <path d="M855,268 L895,268" fill="none" stroke="#c62828" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- Right vertical rail -->
+  <path d="M895,120 L895,440" fill="none" stroke="#c62828" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- FR HT tap (from rail RIGHT to motor LEFT edge — symmetric) -->
+  <path d="M895,120 L938,120" fill="none" stroke="#c62828" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <!-- BR HT tap -->
+  <path d="M895,440 L938,440" fill="none" stroke="#c62828" stroke-width="1.2" stroke-dasharray="5,3"/>
+
+  <!-- CAN 2 labels -->
+  <text x="729" y="215" font-size="7" fill="#c62828" font-weight="600">CAN 2</text>
+  <text x="891" y="215" text-anchor="end" font-size="7" fill="#c62828" font-weight="600">CAN 2</text>
+
+  <!-- Legend right -->
+  <g transform="translate(580,516)">
+    <circle cx="6" cy="0" r="5" fill="#fce4ec" stroke="#c62828" stroke-width="1"/>
+    <text x="16" y="4" font-size="7.5" fill="#555">Joint (HT8115)</text>
+    <rect x="98" y="-5" width="12" height="10" rx="2" fill="#e8f5e9" stroke="#2e7d32" stroke-width="0.8"/>
+    <text x="115" y="4" font-size="7.5" fill="#555">Wheel (M3508)</text>
+    <line x1="195" y1="0" x2="216" y2="0" stroke="#c62828" stroke-width="1.2" stroke-dasharray="5,3"/>
+    <text x="222" y="4" font-size="7.5" fill="#555">CAN 2 (MIT)</text>
+    <line x1="295" y1="0" x2="316" y2="0" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="5,3"/>
+    <text x="322" y="4" font-size="7.5" fill="#555">CAN 1 (PID)</text>
+    <rect x="392" y="-5" width="12" height="10" rx="2" fill="#fff8e1" stroke="#f9a825" stroke-width="1"/>
+    <text x="410" y="4" font-size="7.5" fill="#555">Power</text>
+  </g>
+</svg>

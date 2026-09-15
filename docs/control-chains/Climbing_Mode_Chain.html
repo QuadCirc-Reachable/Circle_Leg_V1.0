@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Climbing Mode Control Chain</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #fff;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .canvas {
+            width: 1920px;
+            height: 1080px;
+            position: relative;
+            overflow: hidden;
+            padding: 30px 36px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 36px;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 18px;
+        }
+
+        /* ---- columns layout ---- */
+        .flow {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            height: 920px;
+        }
+
+        .col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .col.inputs {
+            width: 155px;
+        }
+
+        .col.detect {
+            width: 175px;
+        }
+
+        .col.sm {
+            width: 220px;
+        }
+
+        .col.body {
+            width: 210px;
+        }
+
+        .col.perleg {
+            width: 250px;
+        }
+
+        .col.exec {
+            width: 180px;
+        }
+
+        .col.out {
+            width: 140px;
+        }
+
+        /* ---- boxes ---- */
+        .box {
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .box .title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .box .sub {
+            font-size: 11.5px;
+            color: #555;
+        }
+
+        /* colors */
+        .c-input {
+            background: #e3f2fd;
+            border: 2px solid #64b5f6;
+        }
+
+        .c-detect {
+            background: #fff3e0;
+            border: 2px solid #ffb74d;
+        }
+
+        .c-sm {
+            background: #fce4ec;
+            border: 2px solid #ef9a9a;
+        }
+
+        .c-body {
+            background: #e8f5e9;
+            border: 2px solid #81c784;
+        }
+
+        .c-perleg {
+            background: #f3e5f5;
+            border: 2px solid #ba68c8;
+        }
+
+        .c-exec {
+            background: #e0f7fa;
+            border: 2px solid #4dd0e1;
+        }
+
+        .c-out {
+            background: #f1f8e9;
+            border: 2px solid #aed581;
+        }
+
+        .c-phase {
+            background: #fff9c4;
+            border: 2px solid #ffd54f;
+        }
+
+        /* state machine big box */
+        .sm-container {
+            border: 3px solid #e57373;
+            border-radius: 14px;
+            padding: 12px;
+            background: #fff5f5;
+        }
+
+        .sm-container .sm-title {
+            font-weight: 800;
+            font-size: 15px;
+            color: #c62828;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .sm-phase {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .phase-box {
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 12px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* arrows */
+        .arrow-col {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 28px;
+            flex-shrink: 0;
+        }
+
+        .arrow-col svg {
+            width: 28px;
+            height: 52px;
+        }
+
+        .arrow-col svg polygon {
+            fill: #999;
+        }
+
+        .arrow-col svg line {
+            stroke: #999;
+            stroke-width: 2;
+        }
+
+        /* branch bracket */
+        .bracket-col {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 22px;
+            flex-shrink: 0;
+        }
+
+        /* legend */
+        .legend {
+            position: absolute;
+            bottom: 16px;
+            right: 36px;
+            font-size: 11px;
+            color: #999;
+        }
+
+        /* phase flow arrow inside SM */
+        .phase-arrow {
+            text-align: center;
+            color: #c62828;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="canvas">
+        <h1>Climbing Mode — Control Chain</h1>
+        <div class="subtitle">Per-Leg State Machine + Body Leveling &nbsp;|&nbsp; 500 Hz (2 ms cycle)</div>
+
+        <div class="flow">
+
+            <!-- COL 1: Inputs -->
+            <div class="col inputs">
+                <div class="box c-input">
+                    <div class="title">Xbox Controller</div>
+                    <div class="sub">L/R Trigger → manual angle sweep<br>Button → startClimbAll()</div>
+                </div>
+                <div class="box c-input">
+                    <div class="title">IMU (ICM-42688)</div>
+                    <div class="sub">Pitch / Roll angle<br>Pitch / Roll rate</div>
+                </div>
+                <div class="box c-input">
+                    <div class="title">HT8115 Feedback</div>
+                    <div class="sub">Leg angle θ (deg)<br>Leg torque τ_fb (Nm)<br>Leg current I (A)</div>
+                </div>
+                <div class="box c-input">
+                    <div class="title">M3508 Feedback</div>
+                    <div class="sub">Wheel RPM</div>
+                </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="arrow-col" style="padding-top:160px;">
+                <svg viewBox="0 0 28 52">
+                    <line x1="2" y1="26" x2="20" y2="26" />
+                    <polygon points="18,20 28,26 18,32" />
+                </svg>
+            </div>
+
+            <!-- COL 2: Detection & Preprocessing -->
+            <div class="col detect">
+                <div class="box c-detect">
+                    <div class="title">Torque Residual</div>
+                    <div class="sub">τ_res = τ_fb − τ_gravity<br>Dual-rate LPF baseline<br>Warmup: 0.1 s fast
+                        α=0.3<br>Tracking: slow α=0.02</div>
+                </div>
+                <div class="box c-detect">
+                    <div class="title">Step Detection</div>
+                    <div class="sub">|τ_res − baseline| &gt; threshold<br>Confirmation: 20 ms window<br>Triggers DETECT
+                        → CLIMBING</div>
+                </div>
+                <div class="box c-detect">
+                    <div class="title">VMC Gravity Comp</div>
+                    <div class="sub">τ_gravity per leg<br>Used for residual calc<br>&amp; MIT feedforward</div>
+                </div>
+                <div class="box c-detect">
+                    <div class="title">Warp Compensation</div>
+                    <div class="sub">Ground contact PI<br>Disabled on climbing pair<br>Active on support pair</div>
+                </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="arrow-col" style="padding-top:120px;">
+                <svg viewBox="0 0 28 52">
+                    <line x1="2" y1="26" x2="20" y2="26" />
+                    <polygon points="18,20 28,26 18,32" />
+                </svg>
+            </div>
+
+            <!-- COL 3: Per-Leg State Machine -->
+            <div class="col sm">
+                <div class="sm-container">
+                    <div class="sm-title">Per-Leg State Machine ×4</div>
+                    <div class="sm-phase">
+                        <div class="phase-box c-phase">IDLE<br><span style="font-weight:400;font-size:11px;">Normal
+                                height pipeline</span></div>
+                        <div class="phase-arrow">↓</div>
+                        <div class="phase-box c-phase">PREP<br><span style="font-weight:400;font-size:11px;">Bend to
+                                θ_prep (avoid singularity)</span></div>
+                        <div class="phase-arrow">↓</div>
+                        <div class="phase-box c-phase">DETECT<br><span style="font-weight:400;font-size:11px;">Hold
+                                angle, monitor torque residual</span></div>
+                        <div class="phase-arrow">↓</div>
+                        <div class="phase-box c-phase">CLIMBING<br><span
+                                style="font-weight:400;font-size:11px;">Kinematic trajectory: β integrates,<br>θ from
+                                constraint cos(θ)=f(β)</span></div>
+                        <div class="phase-arrow">↓</div>
+                        <div class="phase-box c-phase">COMPLETE<br><span style="font-weight:400;font-size:11px;">Hold
+                                final angle, wait for all legs</span></div>
+                    </div>
+                    <div style="margin-top:8px;font-size:11px;color:#c62828;text-align:center;">Front pair first → Back
+                        pair auto-starts<br>when both front legs reach COMPLETE</div>
+                </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="arrow-col" style="padding-top:200px;">
+                <svg viewBox="0 0 28 52">
+                    <line x1="2" y1="26" x2="20" y2="26" />
+                    <polygon points="18,20 28,26 18,32" />
+                </svg>
+            </div>
+
+            <!-- COL 4: Body Leveling -->
+            <div class="col body">
+                <div class="box c-body">
+                    <div class="title">Pitch Lean Bias</div>
+                    <div class="sub">Front climbing → lean forward<br>Back climbing → lean backward<br>Shifts weight
+                        onto climbing wheels</div>
+                </div>
+                <div class="box c-body">
+                    <div class="title">Pitch PID</div>
+                    <div class="sub">Setpoint = ±pitch_bias<br>Feedback = IMU pitch<br>→ ΔH_pitch (m)</div>
+                </div>
+                <div class="box c-body">
+                    <div class="title">Roll PID</div>
+                    <div class="sub">Setpoint = 0°<br>Feedback = IMU roll<br>→ ΔH_roll (m)</div>
+                </div>
+                <div class="box c-body">
+                    <div class="title">Leveling Scale</div>
+                    <div class="sub">×0.25 near full extension<br>Prevents PID oscillation<br>at low dH/dθ region</div>
+                </div>
+                <div class="box c-body" style="font-size:11px;">
+                    <div class="title">Kp/Kd Ramp</div>
+                    <div class="sub">Smooth blend from COMFORT<br>exit Kp/Kd → climb target<br>Kp=12, Kd=2.5</div>
+                </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="arrow-col" style="padding-top:180px;">
+                <svg viewBox="0 0 28 52">
+                    <line x1="2" y1="26" x2="20" y2="26" />
+                    <polygon points="18,20 28,26 18,32" />
+                </svg>
+            </div>
+
+            <!-- COL 5: Per-Leg Output Mux -->
+            <div class="col perleg">
+                <div class="box c-perleg" style="border-width:3px;">
+                    <div class="title">Per-Leg Output Mux</div>
+                    <div class="sub" style="font-size:12px;">
+                        <b>IF climbing leg (direct control):</b><br>
+                        &nbsp;&nbsp;θ_cmd = climb_sign × θ_kinematic<br>
+                        &nbsp;&nbsp;ω_cmd = climb_sign × ω_kinematic<br>
+                        &nbsp;&nbsp;+ pitch leveling → Δθ offset<br>
+                        &nbsp;&nbsp;FFW = gravity torque<br><br>
+                        <b>IF support leg (IDLE):</b><br>
+                        &nbsp;&nbsp;H_cmd = H₀ + pitch ± roll + warp<br>
+                        &nbsp;&nbsp;V_cmd = gyro feedforward<br>
+                        &nbsp;&nbsp;→ IK: H → θ<br><br>
+                        <b>IF manual trigger:</b><br>
+                        &nbsp;&nbsp;Direct angle sweep (debug)
+                    </div>
+                </div>
+                <div class="box c-perleg" style="font-size:11px;">
+                    <div class="title">Climb Sign Convention</div>
+                    <div class="sub">FL/FR: sign = −1 (negative angles)<br>BL/BR: sign = +1 (positive angles)<br>Both
+                        converge toward 0° during climb</div>
+                </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="arrow-col" style="padding-top:180px;">
+                <svg viewBox="0 0 28 52">
+                    <line x1="2" y1="26" x2="20" y2="26" />
+                    <polygon points="18,20 28,26 18,32" />
+                </svg>
+            </div>
+
+            <!-- COL 6: Execution -->
+            <div class="col exec">
+                <div class="box c-exec">
+                    <div class="title">HT8115 MIT</div>
+                    <div class="sub">CAN 3 — Leg joints ×4<br>{θ, ω, Kp, Kd, τ_ff}<br>Climbing: Kp=12, Kd=2.5<br>Direct
+                        angle + gravity FFW</div>
+                </div>
+                <div class="box c-exec">
+                    <div class="title">M3508 Velocity PID</div>
+                    <div class="sub">CAN 2 — Wheels ×4<br>Skid-steer IK<br>Wheels assist climbing<br>(push against step
+                        edge)</div>
+                </div>
+                <div class="box c-exec">
+                    <div class="title">Wheel-Leg Decoupling</div>
+                    <div class="sub">Compensates wheel RPM<br>for leg rotation coupling<br>Prevents wheel slip during θ
+                        change</div>
+                </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="arrow-col" style="padding-top:120px;">
+                <svg viewBox="0 0 28 52">
+                    <line x1="2" y1="26" x2="20" y2="26" />
+                    <polygon points="18,20 28,26 18,32" />
+                </svg>
+            </div>
+
+            <!-- COL 7: Output -->
+            <div class="col out">
+                <div class="box c-out">
+                    <div class="title">Leg Joints</div>
+                    <div class="sub">4× HT8115<br>Eccentric wheel-leg<br>θ: 0°–180°</div>
+                </div>
+                <div class="box c-out">
+                    <div class="title">Wheels</div>
+                    <div class="sub">4× M3508<br>Differential drive<br>Assist step traversal</div>
+                </div>
+                <div class="box c-out" style="background:#fff8e1;border-color:#ffca28;">
+                    <div class="title">PC Debug</div>
+                    <div class="sub">Phase / baseline /<br>torque residual /<br>target angle per leg</div>
+                </div>
+            </div>
+
+        </div><!-- flow -->
+
+        <div class="legend">CircLeg Climbing Mode &nbsp;|&nbsp; Front-first sequential climbing &nbsp;|&nbsp; Per-leg
+            state machine with torque-residual step detection</div>
+    </div>
+</body>
+
+</html>
