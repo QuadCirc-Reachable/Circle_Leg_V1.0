@@ -65,6 +65,20 @@ raise or lower that corner, so the chassis can level itself and roll over a step
 
 ---
 
+## Demo | 演示
+
+<p align="center">
+  <a href="https://youtu.be/onJCvx1d8Sw">
+    <img src="docs/figures/demo_video.jpg" width="640" alt="REACHABLE pitch video on YouTube">
+  </a>
+</p>
+
+<p align="center">
+  ▶ <a href="https://youtu.be/onJCvx1d8Sw">Watch the REACHABLE pitch video on YouTube</a> · <a href="https://youtu.be/onJCvx1d8Sw">在 YouTube 观看项目视频</a>
+</p>
+
+---
+
 ## Key Results | 主要结果
 
 Half-size validation, as reported in the team's final project report:
