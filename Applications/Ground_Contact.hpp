@@ -1,3 +1,13 @@
+/**
+ * @file    Ground_Contact.hpp
+ * @brief   Warp (diagonal twist) compensator: PI loop on the diagonal leg-current
+ *          imbalance -> per-leg height offset, keeps all four wheels grounded.
+ *
+ * Circle_Leg_V1 - REACHABLE (QuadCirc) half-size prototype firmware.
+ *
+ * @author  LIU Hualin
+ */
+
 #pragma once
 
 #include <cstdint>

@@ -1,3 +1,13 @@
+/**
+ * @file    Robot_Params.hpp
+ * @brief   Mechanical constants and tuning parameters: CircLeg geometry, chassis
+ *          dimensions, masses, IMU mounting, control gains and safety limits.
+ *
+ * Circle_Leg_V1 - REACHABLE (QuadCirc) half-size prototype firmware.
+ *
+ * @author  LIU Hualin
+ */
+
 #pragma once
 
 #ifndef PI

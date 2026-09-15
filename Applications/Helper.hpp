@@ -1,3 +1,12 @@
+/**
+ * @file    Helper.hpp
+ * @brief   Small helpers: angle normalisation, deg/rad conversion, joystick helpers.
+ *
+ * Circle_Leg_V1 - REACHABLE (QuadCirc) half-size prototype firmware.
+ *
+ * @author  LIU Hualin
+ */
+
 #pragma once
 #include "Comm_Msg.hpp"
 #include "Robot_Params.hpp"

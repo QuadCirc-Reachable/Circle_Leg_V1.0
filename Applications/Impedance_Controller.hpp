@@ -1,3 +1,14 @@
+/**
+ * @file    Impedance_Controller.hpp
+ * @brief   Variable-impedance active suspension: Cartesian spring-damper mapped to
+ *          per-leg MIT Kp / Kd / feed-forward torque, online mass estimate, warp
+ *          modulation.
+ *
+ * Circle_Leg_V1 - REACHABLE (QuadCirc) half-size prototype firmware.
+ *
+ * @author  LIU Hualin
+ */
+
 #pragma once
 
 #include <cmath>

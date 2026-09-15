@@ -1,3 +1,12 @@
+/**
+ * @file    Controller.hpp
+ * @brief   Joystick -> chassis velocity mapping (Vx, Wz) with deadzone.
+ *
+ * Circle_Leg_V1 - REACHABLE (QuadCirc) half-size prototype firmware.
+ *
+ * @author  LIU Hualin
+ */
+
 #pragma once
 #include "Comm_Msg.hpp"
 #include "Cust_Types.hpp"

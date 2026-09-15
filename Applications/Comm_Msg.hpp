@@ -1,3 +1,13 @@
+/**
+ * @file    Comm_Msg.hpp
+ * @brief   PC <-> MCU message layouts (13-byte PC_Msg command, Reachable_Msg
+ *          feedback) and gamepad button bitmasks.
+ *
+ * Circle_Leg_V1 - REACHABLE (QuadCirc) half-size prototype firmware.
+ *
+ * @author  LIU Hualin
+ */
+
 #pragma once
 #include <cstdint>
 // Button Bitmasks

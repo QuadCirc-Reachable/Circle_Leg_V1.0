@@ -1,3 +1,14 @@
+/**
+ * @file    Wheel_Leg.hpp
+ * @brief   One CircLeg corner (wheel motor + eccentric leg motor): height <-> angle
+ *          conversion, MIT leg command pipeline, wheel velocity loop and wheel-leg
+ *          decoupling compensation.
+ *
+ * Circle_Leg_V1 - REACHABLE (QuadCirc) half-size prototype firmware.
+ *
+ * @author  LIU Hualin
+ */
+
 #pragma once
 #include "Cust_Types.hpp"
 #include "DJIMotor.hpp"
