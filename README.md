@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="#overview">English</a> | <a href="#项目概述">中文</a>
+  <b>English</b> | <a href="README_zh.md">中文</a>
 </p>
 
 <p align="center">
@@ -44,28 +44,7 @@ raise or lower that corner, so the chassis can level itself and roll over a step
 
 ---
 
-## 项目概述
-
-<details>
-<summary>点击展开中文说明</summary>
-
-本仓库是 REACHABLE（QuadCirc）**半尺寸概念验证原型** 的嵌入式控制固件。CircLeg 偏心轮腿、
-变阻抗主动悬挂和力矩残差台阶攀爬都是在这台原型上首次实现并验证的。香港科技大学毕业设计项目 **SL05a-25**。
-
-- **硬件**：STM32G473 + FreeRTOS（500 Hz），4 个 DJI M3508 轮电机，4 个 HT8115 腿电机（MIT 阻抗模式，
-  编译选项仍支持 GM6020），ICM-42688-P IMU，与上位机串口通信。
-- **控制**：梯形底盘差速逆运动学、轮腿解耦、Pitch/Roll 调平、变阻抗悬挂、Warp 补偿，以及基于力矩残差
-  检测的逐腿运动学攀爬。
-- **经验**：最初使用的 GM6020 腿电机在负载下无法抬起底盘；改用 HT8115（扭矩约 10 倍、原生 MIT 阻抗控制）
-  后，柔顺悬挂方案才得以实现。
-
-最终全尺寸整车使用同一套控制架构，固件见 [Circle_Leg_V2.0](https://github.com/QuadCirc-Reachable/Circle_Leg_V2.0)。
-
-</details>
-
----
-
-## Demo | 演示
+## Demo
 
 <p align="center">
   <a href="https://youtu.be/onJCvx1d8Sw">
@@ -74,12 +53,12 @@ raise or lower that corner, so the chassis can level itself and roll over a step
 </p>
 
 <p align="center">
-  ▶ <a href="https://youtu.be/onJCvx1d8Sw">Watch the REACHABLE pitch video on YouTube</a> · <a href="https://youtu.be/onJCvx1d8Sw">在 YouTube 观看项目视频</a>
+  ▶ <a href="https://youtu.be/onJCvx1d8Sw">Watch the REACHABLE pitch video on YouTube</a>
 </p>
 
 ---
 
-## Key Results | 主要结果
+## Key Results
 
 Half-size validation, as reported in the team's final project report:
 
@@ -98,12 +77,12 @@ directly to the full-size geometry, where the larger offset covers the 5–18 cm
     <img src="docs/figures/v2_fullsize.jpg" width="220" alt="The full-size successor, Circle_Leg_V2">
   </a>
 </p>
-<p align="center"><sub>The full-size successor running the same control stack · 采用同一控制架构的全尺寸整车 →
+<p align="center"><sub>The full-size successor running the same control stack →
 <a href="https://github.com/QuadCirc-Reachable/Circle_Leg_V2.0">Circle_Leg_V2.0</a></sub></p>
 
 ---
 
-## System Architecture | 系统架构
+## System Architecture
 
 <p align="center">
   <img src="docs/figures/hw_architecture.svg" width="760" alt="Half-size hardware architecture">
@@ -129,9 +108,9 @@ Control-chain diagrams (HTML; download and open locally in a browser):
 
 ---
 
-## Control Design | 控制设计
+## Control Design
 
-### Eccentric kinematics | 偏心运动学
+### Eccentric kinematics
 
 With *R* = 160 mm and *r* = 65 mm, V1 uses the convention
 
@@ -140,7 +119,7 @@ $$H(\theta) = R + r\cos\theta, \qquad \theta = \arccos\frac{H - R}{r}, \qquad \l
 The working range is clamped to [10°, 170°] to stay away from the singularities at 0° and 180°.
 Bending direction (legs outward or inward) is selectable per corner.
 
-### Locomotion | 行驶
+### Locomotion
 
 <p align="center">
   <img src="docs/figures/skid_steer_kinematics.png" width="420" alt="Trapezoidal skid-steer kinematics">
@@ -152,7 +131,7 @@ straight-line driving. A decoupling feed-forward, $n_\text{comp} = n_\text{leg}\
 cancels the wheel motion caused by hub rotation, so the chair doesn't lurch when the ride height
 changes.
 
-### COMFORT — suspension, leveling, warp | 主动悬挂、调平与 Warp
+### COMFORT — suspension, leveling, warp
 
 - **Variable impedance**: $K_p = r^2\sin^2\theta\,k_v$ and $K_d = r^2\sin^2\theta\,c_v$ map a virtual
   spring-damper at the contact point to the HT8115 MIT gains. Joint stiffness vanishes naturally at
@@ -167,7 +146,7 @@ changes.
   <img src="docs/figures/four_dof_modes.png" width="380" alt="Heave, pitch, roll and warp">
 </p>
 
-### CLIMBING — torque-residual detection and kinematic climb | 攀爬
+### CLIMBING — torque-residual detection and kinematic climb
 
 <p align="center">
   <img src="docs/figures/torque_residual_peaks.png" width="460" alt="Torque residual peaks at 500 Hz">
@@ -189,11 +168,11 @@ Full derivations: [docs/TECHNICAL_REPORT.md](docs/TECHNICAL_REPORT.md)
 
 ---
 
-## Repository Structure | 目录结构
+## Repository Structure
 
 ```
 Circle_Leg_V1/
-├── Applications/                   # Application layer | 应用层
+├── Applications/                   # Application layer
 │   ├── Chassis.hpp/.cpp            # Mode state machine, leveling, IK, climbing orchestration
 │   ├── Chassis_Task.hpp/.cpp       # FreeRTOS 500 Hz control task
 │   ├── Wheel_Leg.hpp/.cpp          # One corner: M3508 velocity PID + HT8115 MIT leg pipeline
@@ -220,7 +199,7 @@ The `dev` branch contains an unmerged experiment by Jaccob (a `WheelModule_t` mo
 
 ---
 
-## Getting Started | 快速开始
+## Getting Started
 
 Requires `arm-none-eabi-gcc` (tested with GCC 12.2), GNU Make, a SWD probe, and read access to the
 private [QuadCirc-Reachable/RM2025-Core](https://github.com/QuadCirc-Reachable/RM2025-Core)
@@ -237,7 +216,7 @@ RM2025-Core snapshot, so old commits still rebuild after `git submodule update`.
 
 ---
 
-## Operator Controls | 操作说明
+## Operator Controls
 
 | Input | Function |
 |-------|----------|
@@ -254,7 +233,7 @@ later host commits send the 14-byte V2 message.
 
 ---
 
-## Documentation | 文档
+## Documentation
 
 | Document | Content |
 |----------|---------|
@@ -265,7 +244,7 @@ later host commits send the 14-byte V2 message.
 
 ---
 
-## Team | 团队
+## Team
 
 <p align="center">
   <img src="docs/figures/team.jpg" width="560" alt="The REACHABLE team at the HKUST ISD Class of 2026 event">
@@ -281,7 +260,7 @@ co-supervisor Prof. SHI Ling.
 Application code: [MIT](LICENSE). `Drivers/`, `Middlewares/` and the template files keep their own
 licenses. The `RM2025-Core` submodule is private and not covered.
 
-## Acknowledgments | 致谢
+## Acknowledgments
 
 HKUST ENTERPRIZE RoboMaster team (RM2025-Core, G4 template), Jason GAN (original HT8115 driver),
 STMicroelectronics and the FreeRTOS project, and our friends and classmates at HKUST ISD.
@@ -289,4 +268,4 @@ STMicroelectronics and the FreeRTOS project, and our friends and classmates at H
 <p align="center">
   <img src="docs/figures/isd_friends.jpg" width="480" alt="With friends from HKUST ISD">
 </p>
-<p align="center"><sub>With our friends from HKUST ISD · 和 ISD 的朋友们合影</sub></p>
+<p align="center"><sub>With our friends from HKUST ISD</sub></p>
